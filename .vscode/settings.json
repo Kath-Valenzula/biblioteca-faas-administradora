@@ -1,0 +1,10 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "azureFunctions.projectSubpath": "function-usuarios",
+    "azureFunctions.javaBuildTool": "maven",
+    "azureFunctions.deploySubpath": "function-usuarios/target/azure-functions/function-usuarios-local",
+    "azureFunctions.projectLanguage": "Java",
+    "azureFunctions.projectRuntime": "~4",
+    "debug.internalConsoleOptions": "neverOpen",
+    "azureFunctions.preDeployTask": "package (functions)"
+}

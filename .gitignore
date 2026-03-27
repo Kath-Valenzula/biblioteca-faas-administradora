@@ -3,7 +3,7 @@ build/
 out/
 logs/
 .idea/
-.vscode/
+
 .env
 .env.local
 .env.*.local
