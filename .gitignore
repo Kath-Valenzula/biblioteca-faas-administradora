@@ -1,4 +1,7 @@
 target/
+build/
+out/
+logs/
 .idea/
 .vscode/
 .env
