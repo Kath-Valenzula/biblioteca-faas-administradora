@@ -1,0 +1,25 @@
+server:
+  port: ${BFF_PORT:8080}
+
+spring:
+  application:
+    name: biblioteca-bff
+
+services:
+  usuarios:
+    base-url: ${USUARIOS_FUNCTION_BASE_URL:http://localhost:7071/api}
+  prestamos:
+    base-url: ${PRESTAMOS_FUNCTION_BASE_URL:http://localhost:7072/api}
+  libros:
+    base-url: ${LIBROS_SERVICE_BASE_URL:http://localhost:8083/api}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.biblioteca.bff: ${LOG_LEVEL_APP:INFO}

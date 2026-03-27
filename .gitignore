@@ -1,0 +1,14 @@
+target/
+.idea/
+.vscode/
+.env
+.env.local
+.env.*.local
+**/.azure/
+**/local.settings.json
+*.log
+*.class
+*.jar
+*.iml
+.DS_Store
+Thumbs.db

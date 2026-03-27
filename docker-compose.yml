@@ -1,0 +1,84 @@
+services:
+  oracle-db:
+    image: gvenzl/oracle-free:23-slim-faststart
+    container_name: biblioteca-oracle
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-biblioteca123}
+      APP_USER: ${ORACLE_APP_USER:-biblioteca}
+      APP_USER_PASSWORD: ${ORACLE_APP_PASSWORD:-biblioteca123}
+    ports:
+      - "${ORACLE_DB_PORT:-1521}:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./database/oracle/schema.sql:/container-entrypoint-initdb.d/1-schema.sql:ro
+      - ./database/oracle/data.sql:/container-entrypoint-initdb.d/2-data.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  servicio-libros:
+    build:
+      context: ./servicio-libros
+    environment:
+      LIBROS_PORT: 8083
+      ORACLE_JDBC_URL: jdbc:oracle:thin:@//oracle-db:1521/${ORACLE_DB_SERVICE:-FREEPDB1}
+      ORACLE_APP_USER: ${ORACLE_APP_USER:-biblioteca}
+      ORACLE_APP_PASSWORD: ${ORACLE_APP_PASSWORD:-biblioteca123}
+      LOG_LEVEL_ROOT: ${LOG_LEVEL_ROOT:-INFO}
+      LOG_LEVEL_APP: ${LOG_LEVEL_APP:-INFO}
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    ports:
+      - "${LIBROS_PORT:-8083}:8083"
+
+  function-usuarios:
+    build:
+      context: ./function-usuarios
+    environment:
+      ORACLE_JDBC_URL: jdbc:oracle:thin:@//oracle-db:1521/${ORACLE_DB_SERVICE:-FREEPDB1}
+      ORACLE_APP_USER: ${ORACLE_APP_USER:-biblioteca}
+      ORACLE_APP_PASSWORD: ${ORACLE_APP_PASSWORD:-biblioteca123}
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    ports:
+      - "${USUARIOS_FUNCTION_PORT:-7071}:80"
+
+  function-prestamos:
+    build:
+      context: ./function-prestamos
+    environment:
+      ORACLE_JDBC_URL: jdbc:oracle:thin:@//oracle-db:1521/${ORACLE_DB_SERVICE:-FREEPDB1}
+      ORACLE_APP_USER: ${ORACLE_APP_USER:-biblioteca}
+      ORACLE_APP_PASSWORD: ${ORACLE_APP_PASSWORD:-biblioteca123}
+    depends_on:
+      oracle-db:
+        condition: service_healthy
+    ports:
+      - "${PRESTAMOS_FUNCTION_PORT:-7072}:80"
+
+  bff-springboot:
+    build:
+      context: ./bff-springboot
+    environment:
+      BFF_PORT: 8080
+      USUARIOS_FUNCTION_BASE_URL: http://function-usuarios:80/api
+      PRESTAMOS_FUNCTION_BASE_URL: http://function-prestamos:80/api
+      LIBROS_SERVICE_BASE_URL: http://servicio-libros:8083/api
+      LOG_LEVEL_ROOT: ${LOG_LEVEL_ROOT:-INFO}
+      LOG_LEVEL_APP: ${LOG_LEVEL_APP:-INFO}
+    depends_on:
+      servicio-libros:
+        condition: service_started
+      function-usuarios:
+        condition: service_started
+      function-prestamos:
+        condition: service_started
+    ports:
+      - "${BFF_PORT:-8080}:8080"
+
+volumes:
+  oracle-data:
