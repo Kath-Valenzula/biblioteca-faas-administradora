@@ -1,6 +1,6 @@
 # Sistema de Biblioteca
 
-Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de biblioteca con arquitectura serverless. El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, dos Azure Functions en Java, un servicio de libros y scripts de base de datos Oracle.
+Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de biblioteca con arquitectura hibrida y componentes serverless. El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, dos Azure Functions en Java, un servicio de libros y scripts de base de datos Oracle.
 
 ## Alcance
 
@@ -24,15 +24,16 @@ Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de b
 
 - El cliente consume unicamente el BFF.
 - El BFF enruta llamadas a usuarios, prestamos y libros.
-- Las funciones de usuarios y prestamos se resuelven por URL configurable mediante variables de entorno.
-- El servicio de libros corre como servicio HTTP independiente.
-- Oracle se configura por variables de entorno y puede ejecutarse localmente o como base remota, segun el ambiente.
-- El archivo [docker-compose.yml](docker-compose.yml) levanta el entorno local del BFF, el servicio de libros y Oracle.
+- Las funciones de usuarios y prestamos se consumen por URL configurable; en el flujo validado apuntan a Azure.
+- El servicio de libros corre como servicio HTTP independiente dentro de Docker.
+- Usuarios, prestamos y libros persisten en una unica Oracle Autonomous Database configurada por variables de entorno.
+- El archivo [docker-compose.yml](docker-compose.yml) levanta el BFF y el servicio de libros para validacion local.
 
 ## Modo de validacion actual
 
-- `docker compose` levanta `bff-springboot`, `servicio-libros` y `oracle-db`.
-- `USUARIOS_FUNCTION_BASE_URL` y `PRESTAMOS_FUNCTION_BASE_URL` pueden apuntar a Azure Functions o a funciones locales.
+- `docker compose` levanta `bff-springboot` y `servicio-libros`.
+- `servicio-libros` se conecta a Oracle Cloud usando `ORACLE_JDBC_URL`, `ORACLE_APP_USER` y `ORACLE_APP_PASSWORD`.
+- `USUARIOS_FUNCTION_BASE_URL` y `PRESTAMOS_FUNCTION_BASE_URL` apuntan normalmente a Azure Functions.
 - El BFF queda disponible normalmente en `http://localhost:8088`.
 
 ## Estructura del repositorio
@@ -50,6 +51,7 @@ biblioteca-faas-semana3/
   docs/
     diagrama/
       arquitectura-biblioteca.md
+      arquitectura-biblioteca.png
   .env.example
   .gitignore
   docker-compose.yml
@@ -74,7 +76,7 @@ biblioteca-faas-semana3/
 - JDK 17
 - Maven
 - Docker Desktop
-- Azure Functions Core Tools v4 para ejecutar las funciones en local
+- Azure Functions Core Tools v4 solo si necesitas ejecutar las funciones en local
 
 ## Configuracion
 
@@ -82,14 +84,9 @@ Usa [`.env.example`](.env.example) como base para crear tu archivo `.env`.
 
 Variables relevantes:
 
-- `ORACLE_DB_HOST`
-- `ORACLE_DB_PORT`
-- `ORACLE_DB_SERVICE`
-- `ORACLE_USERNAME`
-- `ORACLE_PASSWORD`
+- `ORACLE_JDBC_URL`
 - `ORACLE_APP_USER`
 - `ORACLE_APP_PASSWORD`
-- `ORACLE_JDBC_URL`
 - `BFF_PORT`
 - `LIBROS_PORT`
 - `USUARIOS_FUNCTION_BASE_URL`
@@ -100,9 +97,20 @@ Variables relevantes:
 - `LOG_LEVEL_ROOT`
 - `LOG_LEVEL_APP`
 
+Variables legacy para compatibilidad local:
+
+- `ORACLE_DB_HOST`
+- `ORACLE_DB_PORT`
+- `ORACLE_DB_SERVICE`
+- `ORACLE_USERNAME`
+- `ORACLE_PASSWORD`
+
 Configuracion recomendada para modo hibrido:
 
 ```env
+ORACLE_JDBC_URL=<oracle-cloud-jdbc-url>
+ORACLE_APP_USER=biblioteca
+ORACLE_APP_PASSWORD=<oracle-cloud-password>
 USUARIOS_FUNCTION_BASE_URL=https://<tu-funcion-usuarios>.azurewebsites.net/api
 PRESTAMOS_FUNCTION_BASE_URL=https://<tu-funcion-prestamos>.azurewebsites.net/api
 ```
@@ -117,6 +125,7 @@ PRESTAMOS_FUNCTION_BASE_URL=http://localhost:7072/api
 Notas operativas:
 
 - En Docker, el BFF usa `http://servicio-libros:8083/api` para comunicarse con `servicio-libros`.
+- `servicio-libros` toma su conexion Oracle directamente desde el `.env`.
 - El puerto publicado del BFF depende de `BFF_PORT`. En este repositorio se valida normalmente con `8088`.
 - Los timeouts del proxy HTTP del BFF se controlan con `BFF_DOWNSTREAM_CONNECT_TIMEOUT` y `BFF_DOWNSTREAM_READ_TIMEOUT`.
 
@@ -134,11 +143,11 @@ docker compose up -d --build
 
 Servicios levantados por Compose:
 
-- `oracle-db`
 - `servicio-libros`
 - `bff-springboot`
 
 Compose no levanta `function-usuarios` ni `function-prestamos`. Esas funciones se consumen por URL externa configurada en el `.env`.
+Compose tampoco levanta Oracle: la base se consume de forma remota mediante `ORACLE_JDBC_URL`.
 
 Detener el entorno:
 
@@ -146,21 +155,20 @@ Detener el entorno:
 docker compose down
 ```
 
-Recrear Oracle desde cero:
+Limpiar contenedores huerfanos antiguos:
 
 ```powershell
-docker compose down -v
-docker compose up -d --build
+docker compose down --remove-orphans
 ```
 
 ## Ejecucion manual
 
-Si necesitas correr todos los componentes fuera de Docker:
+Si necesitas correr todos los componentes fuera de Docker o validar funciones localmente:
 
-1. Levanta Oracle local o configura una instancia Oracle accesible.
-2. Ejecuta [database/oracle/schema.sql](database/oracle/schema.sql).
-3. Ejecuta [database/oracle/data.sql](database/oracle/data.sql).
-4. Ajusta el `.env` para apuntar a las funciones locales.
+1. Configura una instancia Oracle accesible. El flujo recomendado usa Oracle Cloud.
+2. Si la base esta vacia, ejecuta [database/oracle/schema.sql](database/oracle/schema.sql).
+3. Si la base esta vacia, ejecuta [database/oracle/data.sql](database/oracle/data.sql).
+4. Ajusta el `.env` para apuntar a las funciones locales o remotas segun el escenario.
 5. Levanta cada componente en una terminal separada.
 
 Comandos:
@@ -312,10 +320,12 @@ Scripts incluidos:
 - [database/oracle/data.sql](database/oracle/data.sql)
 
 El esquema crea las tablas `USUARIOS`, `LIBROS` y `PRESTAMOS`, junto con sus restricciones e indices basicos.
+Los scripts pueden ejecutarse sobre Oracle Autonomous Database o sobre una instancia Oracle usada para desarrollo manual.
 
 ## Documentacion adicional
 
 - Diagrama de arquitectura: [docs/diagrama/arquitectura-biblioteca.md](docs/diagrama/arquitectura-biblioteca.md)
+- Imagen del diagrama: [docs/diagrama/arquitectura-biblioteca.png](docs/diagrama/arquitectura-biblioteca.png)
 
 ## Entrega
 
