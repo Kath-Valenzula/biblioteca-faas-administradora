@@ -334,6 +334,5 @@ Para generar el archivo final de entrega:
 - Incluye el codigo fuente de todos los modulos.
 - Incluye los scripts SQL de [database/oracle](database/oracle).
 - Incluye la documentacion de [docs](docs).
-- No incluyas `.env`, carpetas `target/`, ni artefactos generados localmente.
 
 Proyecto individual desarrollado para la asignatura Desarrollo Cloud Native II.
