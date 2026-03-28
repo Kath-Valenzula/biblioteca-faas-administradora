@@ -1,93 +1,39 @@
 # Sistema de Biblioteca
 
-Backend académico para gestionar usuarios, libros y préstamos de una biblioteca. La solución está dividida en un BFF en Spring Boot, dos funciones Java, un servicio de libros y una base Oracle, todo preparado para ejecución local con Docker.
+Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de biblioteca con arquitectura serverless. El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, dos Azure Functions en Java, un servicio de libros y scripts de base de datos Oracle.
 
-## Objetivo del proyecto
+## Alcance
 
-El objetivo es resolver el caso de biblioteca pedido en la actividad con una arquitectura simple, modular y fácil de explicar en una demo:
+- API REST para usuarios, prestamos y libros.
+- Backend for Frontend desarrollado con Spring Boot.
+- Dos funciones serverless en Java para usuarios y prestamos.
+- Servicio de libros separado del BFF.
+- Scripts SQL para creacion y carga inicial de datos en Oracle.
+- Sin frontend incluido en el repositorio.
 
-- alta, consulta, actualización y baja de usuarios
-- registro y devolución de préstamos
-- consulta y administración de libros
-- validación de disponibilidad antes de prestar
-- ejecución local reproducible con Docker
+## Componentes
 
-## Arquitectura implementada
+- [bff-springboot](bff-springboot): punto de entrada para el cliente. Valida payloads, expone la API principal y orquesta llamadas hacia funciones y servicio de libros.
+- [function-usuarios](function-usuarios): Azure Function en Java para CRUD de usuarios.
+- [function-prestamos](function-prestamos): Azure Function en Java para CRUD de prestamos y registro de devoluciones.
+- [servicio-libros](servicio-libros): microservicio Spring Boot para gestion de libros y disponibilidad.
+- [database/oracle](database/oracle): scripts `schema.sql` y `data.sql`.
+- [docs/diagrama/arquitectura-biblioteca.md](docs/diagrama/arquitectura-biblioteca.md): diagrama de arquitectura.
 
-La arquitectura se mantiene backend only y respeta el diseño solicitado:
+## Arquitectura
 
-1. Cliente REST
-2. BFF en Spring Boot
-3. Función serverless de usuarios
-4. Función serverless de préstamos
-5. Servicio de libros y disponibilidad
-6. Base de datos Oracle
-7. Orquestación local con Docker Compose
+- El cliente consume unicamente el BFF.
+- El BFF enruta llamadas a usuarios, prestamos y libros.
+- Las funciones de usuarios y prestamos se resuelven por URL configurable mediante variables de entorno.
+- El servicio de libros corre como servicio HTTP independiente.
+- Oracle se configura por variables de entorno y puede ejecutarse localmente o como base remota, segun el ambiente.
+- El archivo [docker-compose.yml](docker-compose.yml) levanta el entorno local del BFF, el servicio de libros y Oracle.
 
-No se agregaron componentes fuera del alcance pedido: no hay frontend, JWT, Redis, colas, mensajería ni circuit breakers.
+## Modo de validacion actual
 
-## Componentes del sistema
-
-### BFF Spring Boot
-
-Ubicación: [bff-springboot](bff-springboot)
-
-Responsabilidades:
-
-- exponer la API principal al cliente
-- validar payloads de entrada
-- enrutar llamadas hacia usuarios, préstamos y libros
-- unificar respuestas HTTP y JSON
-
-### Función de Usuarios
-
-Ubicación: [function-usuarios](function-usuarios)
-
-Responsabilidades:
-
-- crear usuarios
-- listar usuarios
-- obtener usuario por id
-- actualizar usuarios
-- eliminar usuarios sin préstamos asociados
-
-### Función de Préstamos
-
-Ubicación: [function-prestamos](function-prestamos)
-
-Responsabilidades:
-
-- registrar préstamos
-- listar préstamos
-- obtener préstamo por id
-- actualizar préstamos activos
-- registrar devoluciones
-- impedir operaciones inválidas según estado y disponibilidad
-
-### Servicio de Libros
-
-Ubicación: [servicio-libros](servicio-libros)
-
-Responsabilidades:
-
-- registrar libros
-- listar libros
-- consultar libro por id
-- consultar disponibilidad
-- cambiar estado del libro
-
-### Base de datos Oracle
-
-Ubicación: [database/oracle](database/oracle)
-
-Archivos relevantes:
-
-- [database/oracle/schema.sql](database/oracle/schema.sql)
-- [database/oracle/data.sql](database/oracle/data.sql)
-
-### Documentación de arquitectura
-
-Ubicación: [docs/diagrama/arquitectura-biblioteca.md](docs/diagrama/arquitectura-biblioteca.md)
+- `docker compose` levanta `bff-springboot`, `servicio-libros` y `oracle-db`.
+- `USUARIOS_FUNCTION_BASE_URL` y `PRESTAMOS_FUNCTION_BASE_URL` pueden apuntar a Azure Functions o a funciones locales.
+- El BFF queda disponible normalmente en `http://localhost:8088`.
 
 ## Estructura del repositorio
 
@@ -111,37 +57,30 @@ biblioteca-faas-semana3/
   README.md
 ```
 
-## Tecnologías utilizadas
+## Tecnologias
 
 - Java 17
 - Spring Boot 3.3.5
 - Azure Functions Java
-- Oracle Database Free
+- Oracle Database
 - JDBC
 - Spring Data JPA
 - Docker
 - Docker Compose
 - Maven
 
-## Requisitos previos
-
-Para ejecución con Docker:
-
-- Docker Desktop levantado
-- Docker Compose disponible
-
-Para ejecución manual sin Docker:
+## Requisitos
 
 - JDK 17
 - Maven
-- Azure Functions Core Tools v4
-- una instancia Oracle accesible
+- Docker Desktop
+- Azure Functions Core Tools v4 para ejecutar las funciones en local
 
-## Variables de entorno necesarias
+## Configuracion
 
-Tomar como base [.env.example](.env.example) y copiarlo a un archivo `.env` local antes de ejecutar con Docker o sin Docker.
+Usa [`.env.example`](.env.example) como base para crear tu archivo `.env`.
 
-Variables utilizadas:
+Variables relevantes:
 
 - `ORACLE_DB_HOST`
 - `ORACLE_DB_PORT`
@@ -153,32 +92,76 @@ Variables utilizadas:
 - `ORACLE_JDBC_URL`
 - `BFF_PORT`
 - `LIBROS_PORT`
-- `USUARIOS_FUNCTION_PORT`
-- `PRESTAMOS_FUNCTION_PORT`
 - `USUARIOS_FUNCTION_BASE_URL`
 - `PRESTAMOS_FUNCTION_BASE_URL`
 - `LIBROS_SERVICE_BASE_URL`
+- `BFF_DOWNSTREAM_CONNECT_TIMEOUT`
+- `BFF_DOWNSTREAM_READ_TIMEOUT`
 - `LOG_LEVEL_ROOT`
 - `LOG_LEVEL_APP`
 
-Valor usado en esta máquina durante la validación:
+Configuracion recomendada para modo hibrido:
 
-- `BFF_PORT=8088`
+```env
+USUARIOS_FUNCTION_BASE_URL=https://<tu-funcion-usuarios>.azurewebsites.net/api
+PRESTAMOS_FUNCTION_BASE_URL=https://<tu-funcion-prestamos>.azurewebsites.net/api
+```
 
-Se usó 8088 porque durante la validación local el 8080 ya estaba ocupado por otro servicio.
+Configuracion para modo local manual:
 
-## Cómo ejecutar en local
+```env
+USUARIOS_FUNCTION_BASE_URL=http://localhost:7071/api
+PRESTAMOS_FUNCTION_BASE_URL=http://localhost:7072/api
+```
 
-Ejecución manual sugerida:
+Notas operativas:
 
-1. Levantar Oracle o usar el contenedor Oracle del proyecto.
-2. Ejecutar [database/oracle/schema.sql](database/oracle/schema.sql).
-3. Ejecutar [database/oracle/data.sql](database/oracle/data.sql).
-4. Crear `.env` desde [.env.example](.env.example).
-5. Levantar el servicio de libros.
-6. Levantar la función de usuarios.
-7. Levantar la función de préstamos.
-8. Levantar el BFF.
+- En Docker, el BFF usa `http://servicio-libros:8083/api` para comunicarse con `servicio-libros`.
+- El puerto publicado del BFF depende de `BFF_PORT`. En este repositorio se valida normalmente con `8088`.
+- Los timeouts del proxy HTTP del BFF se controlan con `BFF_DOWNSTREAM_CONNECT_TIMEOUT` y `BFF_DOWNSTREAM_READ_TIMEOUT`.
+
+## Ejecucion con Docker
+
+Modo recomendado para validar el BFF y el servicio de libros:
+
+1. Crea `.env` a partir de [`.env.example`](.env.example).
+2. Define `USUARIOS_FUNCTION_BASE_URL` y `PRESTAMOS_FUNCTION_BASE_URL` segun el ambiente.
+3. Ejecuta:
+
+```powershell
+docker compose up -d --build
+```
+
+Servicios levantados por Compose:
+
+- `oracle-db`
+- `servicio-libros`
+- `bff-springboot`
+
+Compose no levanta `function-usuarios` ni `function-prestamos`. Esas funciones se consumen por URL externa configurada en el `.env`.
+
+Detener el entorno:
+
+```powershell
+docker compose down
+```
+
+Recrear Oracle desde cero:
+
+```powershell
+docker compose down -v
+docker compose up -d --build
+```
+
+## Ejecucion manual
+
+Si necesitas correr todos los componentes fuera de Docker:
+
+1. Levanta Oracle local o configura una instancia Oracle accesible.
+2. Ejecuta [database/oracle/schema.sql](database/oracle/schema.sql).
+3. Ejecuta [database/oracle/data.sql](database/oracle/data.sql).
+4. Ajusta el `.env` para apuntar a las funciones locales.
+5. Levanta cada componente en una terminal separada.
 
 Comandos:
 
@@ -202,53 +185,11 @@ cd bff-springboot
 mvn spring-boot:run
 ```
 
-## Cómo ejecutar con Docker
-
-1. Copiar [.env.example](.env.example) como `.env`.
-2. Ajustar `BFF_PORT` si el puerto elegido ya está ocupado.
-3. Desde la raíz, ejecutar:
-
-```powershell
-docker compose up --build
-```
-
-Para bajar el entorno:
-
-```powershell
-docker compose down
-```
-
-Si se necesita reconstruir Oracle desde cero:
-
-```powershell
-docker compose down -v
-docker compose up --build
-```
-
-## Orden recomendado de levantamiento
-
-1. Oracle
-2. Servicio de libros
-3. Función de usuarios
-4. Función de préstamos
-5. BFF
-
-Ese orden ya está modelado en [docker-compose.yml](docker-compose.yml) mediante `depends_on` y health checks.
-
-## Puertos usados
-
-- BFF en contenedor: `8080`
-- BFF publicado localmente en esta máquina: `8088`
-- Servicio de libros: `8083`
-- Función de usuarios: `7071`
-- Función de préstamos: `7072`
-- Oracle: `1521`
-
-El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y se validó con `8088`.
+Los archivos [function-usuarios/local.settings.sample.json](function-usuarios/local.settings.sample.json) y [function-prestamos/local.settings.sample.json](function-prestamos/local.settings.sample.json) sirven como referencia para la configuracion local de Azure Functions.
 
 ## Endpoints principales
 
-### Usuarios
+Usuarios:
 
 - `GET /api/usuarios`
 - `GET /api/usuarios/{id}`
@@ -256,7 +197,7 @@ El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y 
 - `PUT /api/usuarios/{id}`
 - `DELETE /api/usuarios/{id}`
 
-### Préstamos
+Prestamos:
 
 - `GET /api/prestamos`
 - `GET /api/prestamos/{id}`
@@ -265,7 +206,7 @@ El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y 
 - `POST /api/prestamos/{id}/devolucion`
 - `DELETE /api/prestamos/{id}`
 
-### Libros
+Libros:
 
 - `GET /api/libros`
 - `GET /api/libros/{id}`
@@ -273,9 +214,9 @@ El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y 
 - `POST /api/libros`
 - `PUT /api/libros/{id}/estado`
 
-## Ejemplos de uso con JSON
+## Ejemplos de payload
 
-### Crear usuario
+Crear usuario:
 
 ```json
 {
@@ -285,7 +226,7 @@ El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y 
 }
 ```
 
-### Crear préstamo
+Crear prestamo:
 
 ```json
 {
@@ -297,7 +238,7 @@ El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y 
 }
 ```
 
-### Registrar devolución
+Registrar devolucion:
 
 ```json
 {
@@ -306,7 +247,7 @@ El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y 
 }
 ```
 
-### Crear libro
+Crear libro:
 
 ```json
 {
@@ -317,7 +258,7 @@ El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y 
 }
 ```
 
-### Cambiar estado de un libro
+Actualizar estado de un libro:
 
 ```json
 {
@@ -325,28 +266,20 @@ El puerto externo del BFF depende de `BFF_PORT`. En esta entrega se documenta y 
 }
 ```
 
-## Reglas de negocio importantes
+## Reglas de negocio
 
-- no se registra un préstamo para un usuario inexistente
-- no se registra un préstamo para un libro inexistente
-- no se presta un libro que ya no está disponible
-- al registrar un préstamo, el libro pasa a `PRESTADO`
-- al registrar una devolución, el libro vuelve a `DISPONIBLE`
-- solo se actualizan préstamos en estado `ACTIVO`
-- solo se eliminan préstamos en estado `DEVUELTO`
-- no se elimina un usuario si tiene préstamos registrados
+- No se registra un prestamo para un usuario inexistente.
+- No se registra un prestamo para un libro inexistente.
+- No se presta un libro que no este disponible.
+- Al registrar un prestamo, el libro pasa a estado `PRESTADO`.
+- Al registrar una devolucion, el libro vuelve a estado `DISPONIBLE`.
+- Solo se actualizan prestamos en estado `ACTIVO`.
+- Solo se eliminan prestamos en estado `DEVUELTO`.
+- No se elimina un usuario si tiene prestamos asociados.
 
-## Cómo verificar que el sistema está funcionando
+## Verificacion
 
-Con Docker arriba, validar en este orden:
-
-1. comprobar que Oracle esté healthy en `docker compose ps`
-2. abrir el health del BFF
-3. abrir el health del servicio de libros
-4. consultar usuarios, libros y préstamos a través del BFF
-5. probar un alta de usuario y un préstamo válido
-
-Comandos mínimos de verificación:
+Asumiendo `BFF_PORT=8088`, validaciones minimas:
 
 ```powershell
 curl http://localhost:8088/actuator/health
@@ -357,46 +290,40 @@ curl http://localhost:8088/api/usuarios
 ```
 
 ```powershell
-curl http://localhost:8088/api/libros
-```
-
-```powershell
 curl http://localhost:8088/api/prestamos
 ```
 
-## Links de prueba local
+```powershell
+curl http://localhost:8088/api/libros
+```
 
-Asumiendo `BFF_PORT=8088`:
+Referencias utiles:
 
-- BFF: http://localhost:8088
-- Health del BFF: http://localhost:8088/actuator/health
-- Usuarios: http://localhost:8088/api/usuarios
-- Préstamos: http://localhost:8088/api/prestamos
-- Libros: http://localhost:8088/api/libros
-- Disponibilidad de libro 2: http://localhost:8088/api/libros/2/disponibilidad
-- Health del servicio de libros: http://localhost:8083/actuator/health
-- Servicio de libros directo: http://localhost:8083/api/libros
-- Función de usuarios directa: http://localhost:7071/api/usuarios
-- Función de préstamos directa: http://localhost:7072/api/prestamos
+- BFF: `http://localhost:8088`
+- Health BFF: `http://localhost:8088/actuator/health`
+- Servicio de libros: `http://localhost:8083/api/libros`
+- Health servicio de libros: `http://localhost:8083/actuator/health`
 
-## Notas útiles para la demo
+## Base de datos
 
-- el puerto externo del BFF depende de `BFF_PORT`
-- si `8080` está ocupado, usar `8088` u otro puerto libre
-- si Oracle ya tenía datos de una corrida anterior, puede ser necesario ejecutar `docker compose down -v`
-- el archivo `.env` es local y no forma parte de la entrega final
-- conviene grabar la demo con Docker ya levantado para no perder tiempo esperando Oracle
+Scripts incluidos:
 
-## Posibles siguientes pasos hacia Azure
+- [database/oracle/schema.sql](database/oracle/schema.sql)
+- [database/oracle/data.sql](database/oracle/data.sql)
 
-Sin cambiar la arquitectura actual, los siguientes pasos razonables serían:
+El esquema crea las tablas `USUARIOS`, `LIBROS` y `PRESTAMOS`, junto con sus restricciones e indices basicos.
 
-1. publicar las funciones Java en Azure Functions
-2. desplegar el BFF y el servicio de libros en App Service o Container Apps
-3. mover credenciales a Azure Key Vault
-4. separar configuración por ambiente
-5. incorporar CI/CD
+## Documentacion adicional
 
-## Autoría individual
+- Diagrama de arquitectura: [docs/diagrama/arquitectura-biblioteca.md](docs/diagrama/arquitectura-biblioteca.md)
+
+## Entrega
+
+Para generar el archivo final de entrega:
+
+- Incluye el codigo fuente de todos los modulos.
+- Incluye los scripts SQL de [database/oracle](database/oracle).
+- Incluye la documentacion de [docs](docs).
+- No incluyas `.env`, carpetas `target/`, ni artefactos generados localmente.
 
 Proyecto individual desarrollado para la asignatura Desarrollo Cloud Native II.
