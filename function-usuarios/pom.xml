@@ -49,7 +49,7 @@
                 <artifactId>azure-functions-maven-plugin</artifactId>
                 <version>${azure.functions.maven.plugin.version}</version>
                 <configuration>
-                    <appName>function-usuarios-local</appName>
+                    <appName>biblio-usuarios-kath2026</appName>
                     <resourceGroup>rg-local</resourceGroup>
                     <region>westeurope</region>
                     <runtime>

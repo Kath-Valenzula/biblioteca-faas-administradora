@@ -14,7 +14,6 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -43,7 +42,8 @@ public class UsuarioFunction {
 
             try (Connection connection = DatabaseConfig.getConnection();
                  PreparedStatement statement = connection.prepareStatement(
-                     "INSERT INTO USUARIOS (NOMBRE, CORREO, TELEFONO, ESTADO, FECHA_REGISTRO) VALUES (?, ?, ?, ?, ?)")) {
+                     "INSERT INTO USUARIOS (NOMBRE, CORREO, TELEFONO, ESTADO, FECHA_REGISTRO) VALUES (?, ?, ?, ?, ?)",
+                     new String[]{"ID"})) {
                 statement.setString(1, payload.getNombre().trim());
                 statement.setString(2, payload.getCorreo().trim().toLowerCase());
                 statement.setString(3, valorOpcional(payload.getTelefono()));
@@ -51,7 +51,7 @@ public class UsuarioFunction {
                 statement.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
                 statement.executeUpdate();
 
-                Long id = obtenerUltimoId(connection, "USUARIOS");
+                Long id = obtenerIdGenerado(statement, "usuario");
                 Map<String, Object> usuario = obtenerUsuarioPorId(connection, id);
                 return JsonSupport.response(request, HttpStatus.CREATED, true,
                         "Usuario creado correctamente", usuario);
@@ -220,14 +220,13 @@ public class UsuarioFunction {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private Long obtenerUltimoId(Connection connection, String tableName) throws SQLException {
-        try (Statement fallback = connection.createStatement();
-             ResultSet generatedKeys = fallback.executeQuery("SELECT MAX(ID) AS ID FROM " + tableName)) {
+    private Long obtenerIdGenerado(PreparedStatement statement, String entityName) throws SQLException {
+        try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
             if (generatedKeys.next()) {
-                return generatedKeys.getLong("ID");
+                return generatedKeys.getLong(1);
             }
         }
-        throw new SQLException("No fue posible recuperar el id generado");
+        throw new SQLException("No fue posible recuperar el id generado para " + entityName);
     }
 
     private boolean tienePrestamos(Connection connection, Long usuarioId) throws SQLException {

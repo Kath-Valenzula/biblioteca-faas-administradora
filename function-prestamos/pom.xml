@@ -54,7 +54,7 @@
                 <artifactId>azure-functions-maven-plugin</artifactId>
                 <version>${azure.functions.maven.plugin.version}</version>
                 <configuration>
-                    <appName>function-prestamos-local</appName>
+                    <appName>biblio-prestamos-kath2026</appName>
                     <resourceGroup>rg-local</resourceGroup>
                     <region>westeurope</region>
                     <runtime>

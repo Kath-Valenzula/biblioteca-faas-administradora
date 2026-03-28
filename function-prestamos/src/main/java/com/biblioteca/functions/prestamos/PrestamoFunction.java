@@ -14,7 +14,6 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -62,7 +61,8 @@ public class PrestamoFunction {
 
                     Long prestamoId;
                     try (PreparedStatement statement = connection.prepareStatement(
-                            "INSERT INTO PRESTAMOS (USUARIO_ID, LIBRO_ID, FECHA_PRESTAMO, FECHA_DEVOLUCION_ESTIMADA, ESTADO, OBSERVACION, FECHA_REGISTRO) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+                            "INSERT INTO PRESTAMOS (USUARIO_ID, LIBRO_ID, FECHA_PRESTAMO, FECHA_DEVOLUCION_ESTIMADA, ESTADO, OBSERVACION, FECHA_REGISTRO) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            new String[]{"ID"})) {
                         statement.setLong(1, payload.getUsuarioId());
                         statement.setLong(2, payload.getLibroId());
                         statement.setDate(3, Date.valueOf(payload.getFechaPrestamo()));
@@ -71,7 +71,7 @@ public class PrestamoFunction {
                         statement.setString(6, valorOpcional(payload.getObservacion()));
                         statement.setTimestamp(7, new Timestamp(System.currentTimeMillis()));
                         statement.executeUpdate();
-                        prestamoId = obtenerUltimoId(connection, "PRESTAMOS");
+                        prestamoId = obtenerIdGenerado(statement, "prestamo");
                     }
 
                     try (PreparedStatement statement = connection.prepareStatement(
@@ -356,14 +356,13 @@ public class PrestamoFunction {
         }
     }
 
-    private Long obtenerUltimoId(Connection connection, String tableName) throws SQLException {
-        try (Statement fallback = connection.createStatement();
-             ResultSet resultSet = fallback.executeQuery("SELECT MAX(ID) AS ID FROM " + tableName)) {
-            if (resultSet.next()) {
-                return resultSet.getLong("ID");
+    private Long obtenerIdGenerado(PreparedStatement statement, String entityName) throws SQLException {
+        try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+            if (generatedKeys.next()) {
+                return generatedKeys.getLong(1);
             }
         }
-        throw new SQLException("No fue posible recuperar el id generado");
+        throw new SQLException("No fue posible recuperar el id generado para " + entityName);
     }
 
     private Map<String, Object> obtenerPrestamo(Connection connection, Long id) throws SQLException {
