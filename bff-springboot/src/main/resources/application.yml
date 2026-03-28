@@ -6,6 +6,9 @@ spring:
     name: biblioteca-bff
 
 services:
+  downstream:
+    connect-timeout: ${BFF_DOWNSTREAM_CONNECT_TIMEOUT:5s}
+    read-timeout: ${BFF_DOWNSTREAM_READ_TIMEOUT:60s}
   usuarios:
     base-url: ${USUARIOS_FUNCTION_BASE_URL:http://localhost:7071/api}
   prestamos:
