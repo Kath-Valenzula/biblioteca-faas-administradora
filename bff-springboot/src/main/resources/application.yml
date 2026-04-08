@@ -16,6 +16,11 @@ services:
   libros:
     base-url: ${LIBROS_SERVICE_BASE_URL:http://localhost:8083/api}
 
+azure:
+  servicebus:
+    connection-string: ${SERVICEBUS_CONNECTION_STRING}
+    queue-name: ${SERVICEBUS_QUEUE_NAME:prestamo-notificaciones}
+
 management:
   endpoints:
     web:

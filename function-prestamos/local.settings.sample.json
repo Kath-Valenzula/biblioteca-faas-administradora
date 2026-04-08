@@ -10,6 +10,8 @@
     "ORACLE_PASSWORD": "biblioteca123",
     "ORACLE_APP_USER": "biblioteca",
     "ORACLE_APP_PASSWORD": "biblioteca123",
-    "ORACLE_JDBC_URL": "jdbc:oracle:thin:@//localhost:1521/FREEPDB1"
+    "ORACLE_JDBC_URL": "jdbc:oracle:thin:@//localhost:1521/FREEPDB1",
+    "ServiceBusConnection": "<tu-cadena-de-conexion-de-azure-service-bus>",
+    "SERVICEBUS_QUEUE_NAME": "prestamo-notificaciones"
   }
 }
