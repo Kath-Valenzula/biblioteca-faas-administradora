@@ -1,6 +1,6 @@
 # Sistema de Biblioteca
 
-Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de biblioteca con arquitectura hibrida y componentes serverless. El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, dos Azure Functions en Java, un servicio de libros y scripts de base de datos Oracle.
+Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de biblioteca con arquitectura hibrida, componentes serverless y arquitectura orientada a eventos (EDA). El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, dos Azure Functions en Java, un servicio de libros, integracion asincrona mediante Azure Service Bus y scripts de base de datos Oracle.
 
 ## Alcance
 
@@ -8,6 +8,9 @@ Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de b
 - Backend for Frontend desarrollado con Spring Boot.
 - Dos funciones serverless en Java para usuarios y prestamos.
 - Servicio de libros separado del BFF.
+- Arquitectura orientada a eventos (EDA) con Azure Service Bus como message broker.
+- Productor de eventos en el BFF para notificaciones de prestamos.
+- Consumidor de eventos en Azure Function con trigger de Service Bus.
 - Scripts SQL para creacion y carga inicial de datos en Oracle.
 - Sin frontend incluido en el repositorio.
 
@@ -15,7 +18,7 @@ Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de b
 
 - [bff-springboot](bff-springboot): punto de entrada para el cliente. Valida payloads, expone la API principal y orquesta llamadas hacia funciones y servicio de libros.
 - [function-usuarios](function-usuarios): Azure Function en Java para CRUD de usuarios.
-- [function-prestamos](function-prestamos): Azure Function en Java para CRUD de prestamos y registro de devoluciones.
+- [function-prestamos](function-prestamos): Azure Function en Java para CRUD de prestamos, registro de devoluciones y consumidor de eventos de notificacion via Service Bus.
 - [servicio-libros](servicio-libros): microservicio Spring Boot para gestion de libros y disponibilidad.
 - [database/oracle](database/oracle): scripts `schema.sql` y `data.sql`.
 - [docs/diagrama/arquitectura-biblioteca.md](docs/diagrama/arquitectura-biblioteca.md): diagrama de arquitectura.
@@ -29,6 +32,12 @@ Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de b
 - Usuarios, prestamos y libros persisten en una unica Oracle Autonomous Database configurada por variables de entorno.
 - El archivo [docker-compose.yml](docker-compose.yml) levanta el BFF y el servicio de libros para validacion local.
 
+Flujo EDA (Arquitectura Orientada a Eventos):
+
+- El BFF actua como productor: al invocar `POST /api/prestamos/notificar`, serializa el payload a JSON y lo publica en la cola `prestamo-notificaciones` de Azure Service Bus.
+- La Azure Function `NotificacionConsumer` en `function-prestamos` actua como consumidor: escucha la cola mediante `@ServiceBusQueueTrigger`, deserializa el mensaje y simula el envio de una notificacion.
+- La comunicacion entre productor y consumidor es completamente asincrona y desacoplada.
+
 ## Modo de validacion actual
 
 - `docker compose` levanta `bff-springboot` y `servicio-libros`.
@@ -41,7 +50,16 @@ Repositorio de la Actividad Sumativa 1 para la implementacion de un sistema de b
 ```text
 biblioteca-faas-semana3/
   bff-springboot/
+    src/main/java/com/biblioteca/bff/
+      controller/
+        PrestamosController.java        # endpoint /notificar (productor EDA)
+      dto/
+        NotificacionPrestamoRequest.java # DTO de notificacion
+      service/
+        ServiceBusProducerService.java   # productor Azure Service Bus
   function-prestamos/
+    src/main/java/com/biblioteca/functions/prestamos/
+      NotificacionConsumerFunction.java  # consumidor EDA (@ServiceBusQueueTrigger)
   function-usuarios/
   servicio-libros/
   database/
@@ -64,6 +82,7 @@ biblioteca-faas-semana3/
 - Java 17
 - Spring Boot 3.3.5
 - Azure Functions Java
+- Azure Service Bus (SDK `azure-messaging-servicebus`)
 - Oracle Database
 - JDBC
 - Spring Data JPA
@@ -96,6 +115,8 @@ Variables relevantes:
 - `BFF_DOWNSTREAM_READ_TIMEOUT`
 - `LOG_LEVEL_ROOT`
 - `LOG_LEVEL_APP`
+- `SERVICEBUS_CONNECTION_STRING`
+- `SERVICEBUS_QUEUE_NAME`
 
 Variables legacy para compatibilidad local:
 
@@ -121,6 +142,15 @@ Configuracion para modo local manual:
 USUARIOS_FUNCTION_BASE_URL=http://localhost:7071/api
 PRESTAMOS_FUNCTION_BASE_URL=http://localhost:7072/api
 ```
+
+Configuracion de Azure Service Bus:
+
+```env
+SERVICEBUS_CONNECTION_STRING=Endpoint=sb://<tu-namespace>.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=<tu-clave>
+SERVICEBUS_QUEUE_NAME=prestamo-notificaciones
+```
+
+Para las Azure Functions, la conexion de Service Bus se configura en `local.settings.json` bajo las claves `ServiceBusConnection` y `SERVICEBUS_QUEUE_NAME`. Usa [function-prestamos/local.settings.sample.json](function-prestamos/local.settings.sample.json) como referencia.
 
 Notas operativas:
 
@@ -213,6 +243,7 @@ Prestamos:
 - `PUT /api/prestamos/{id}`
 - `POST /api/prestamos/{id}/devolucion`
 - `DELETE /api/prestamos/{id}`
+- `POST /api/prestamos/notificar` — publica un evento de notificacion en Azure Service Bus (EDA)
 
 Libros:
 
@@ -274,6 +305,17 @@ Actualizar estado de un libro:
 }
 ```
 
+Enviar notificacion de prestamo (EDA):
+
+```json
+{
+  "prestamoId": 1,
+  "usuarioId": 2,
+  "libroTitulo": "Java Concurrency in Practice",
+  "tipo": "CONFIRMACION_PRESTAMO"
+}
+```
+
 ## Reglas de negocio
 
 - No se registra un prestamo para un usuario inexistente.
@@ -305,6 +347,12 @@ curl http://localhost:8088/api/prestamos
 curl http://localhost:8088/api/libros
 ```
 
+Verificar el flujo EDA (requiere Azure Service Bus configurado y la funcion consumidora corriendo):
+
+```powershell
+curl -X POST http://localhost:8088/api/prestamos/notificar -H "Content-Type: application/json" -d '{"prestamoId":1,"usuarioId":2,"libroTitulo":"Java Concurrency in Practice","tipo":"CONFIRMACION_PRESTAMO"}'
+```
+
 Referencias utiles:
 
 - BFF: `http://localhost:8088`
@@ -334,5 +382,8 @@ Para generar el archivo final de entrega:
 - Incluye el codigo fuente de todos los modulos.
 - Incluye los scripts SQL de [database/oracle](database/oracle).
 - Incluye la documentacion de [docs](docs).
+- No incluyas `.env`, carpetas `target/`, ni artefactos generados localmente.
 
 Proyecto individual desarrollado para la asignatura Desarrollo Cloud Native II.
+
+Sumativa 2: implementacion de Arquitectura Orientada a Eventos (EDA) con Azure Service Bus.
