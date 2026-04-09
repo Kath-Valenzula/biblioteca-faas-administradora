@@ -28,7 +28,7 @@ Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de b
 - [function-notificaciones](function-notificaciones): Azure Function en Java dedicada al consumo de eventos de notificacion via Service Bus.
 - [servicio-libros](servicio-libros): microservicio Spring Boot para gestion de libros y disponibilidad (GraphQL incluido).
 - [database/oracle](database/oracle): scripts `schema.sql` y `data.sql`.
-- [docs/diagrama/arquitectura-biblioteca.md](docs/diagrama/arquitectura-biblioteca.md): diagrama de arquitectura.
+- [diagrama semana 5.png](diagrama%20semana%205.png): diagrama de arquitectura del proyecto.
 
 ## Arquitectura
 
@@ -98,9 +98,9 @@ biblioteca-faas-semana3/
     oracle/
       schema.sql
       data.sql
+  diagrama semana 5.png
   docs/
     diagrama/
-      arquitectura-biblioteca.md
       arquitectura-biblioteca.png
   .env.example
   .gitignore

@@ -36,7 +36,9 @@ public class PrestamoGraphQLFunction {
             }
             """;
 
-    private GraphQL buildGraphQL() {
+    private static final GraphQL GRAPHQL_ENGINE = buildGraphQL();
+
+    private static GraphQL buildGraphQL() {
         TypeDefinitionRegistry registry = new SchemaParser().parse(SDL);
         RuntimeWiring wiring = RuntimeWiring.newRuntimeWiring()
                 .type("Query", builder -> builder
@@ -66,12 +68,11 @@ public class PrestamoGraphQLFunction {
                     ? mapper.convertValue(node.get("variables"), Map.class)
                     : Collections.emptyMap();
 
-            GraphQL graphQL = buildGraphQL();
             ExecutionInput input = ExecutionInput.newExecutionInput()
                     .query(query)
                     .variables(variables)
                     .build();
-            ExecutionResult result = graphQL.execute(input);
+            ExecutionResult result = GRAPHQL_ENGINE.execute(input);
 
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("data", result.getData());
@@ -92,7 +93,7 @@ public class PrestamoGraphQLFunction {
         }
     }
 
-    private List<Map<String, Object>> fetchAllPrestamos() throws Exception {
+    private static List<Map<String, Object>> fetchAllPrestamos() throws Exception {
         String sql = """
                 SELECT p.ID, p.USUARIO_ID, u.NOMBRE AS USUARIO_NOMBRE,
                        p.LIBRO_ID, l.TITULO AS LIBRO_TITULO,
@@ -114,7 +115,7 @@ public class PrestamoGraphQLFunction {
         return list;
     }
 
-    private Map<String, Object> fetchPrestamoById(int id) throws Exception {
+    private static Map<String, Object> fetchPrestamoById(int id) throws Exception {
         String sql = """
                 SELECT p.ID, p.USUARIO_ID, u.NOMBRE AS USUARIO_NOMBRE,
                        p.LIBRO_ID, l.TITULO AS LIBRO_TITULO,
@@ -137,7 +138,7 @@ public class PrestamoGraphQLFunction {
         return null;
     }
 
-    private Map<String, Object> mapPrestamo(ResultSet rs) throws Exception {
+    private static Map<String, Object> mapPrestamo(ResultSet rs) throws Exception {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", rs.getInt("ID"));
         m.put("usuarioId", rs.getInt("USUARIO_ID"));
