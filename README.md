@@ -52,7 +52,7 @@ Azure Functions desplegadas:
 | Function App | Modulo | Funciones |
 |---|---|---|
 | `biblio-usuarios-kath2026-v2` | function-usuarios | UsuariosCrear, UsuariosListar, UsuariosObtener, UsuariosActualizar, UsuariosEliminar, UsuariosGraphQL |
-| `biblio-prestamos-kath2026-v2` | function-prestamos | PrestamosCrear, PrestamosListar, PrestamosObtener, PrestamosActualizar, PrestamosDevolver, PrestamosEliminar, NotificacionConsumer, PrestamosGraphQL |
+| `biblio-prestamos-kath2026-v2` | function-prestamos | PrestamosCrear, PrestamosListar, PrestamosObtener, PrestamosActualizar, PrestamosDevolver, PrestamosEliminar, PrestamosGraphQL |
 | `biblio-libros-kath2026` | function-libros | LibrosCrear, LibrosListar, LibrosObtener, LibrosActualizarEstado, LibrosDisponibilidad, LibrosGraphQL |
 | `biblio-notificaciones-kath2026` | function-notificaciones | NotificacionConsumer |
 
@@ -86,7 +86,6 @@ biblioteca-faas-semana3/
     src/main/java/com/biblioteca/functions/prestamos/
       PrestamoFunction.java              # CRUD REST prestamos
       PrestamoGraphQLFunction.java       # GraphQL prestamos
-      NotificacionConsumerFunction.java  # consumidor EDA (legacy, tambien en function-notificaciones)
   function-libros/
     src/main/java/com/biblioteca/functions/libros/
       LibroFunction.java                 # CRUD REST libros
