@@ -1,33 +1,42 @@
 # Sistema de Biblioteca
 
-Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de biblioteca con arquitectura hibrida, componentes serverless y arquitectura orientada a eventos (EDA). El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, dos Azure Functions en Java, un servicio de libros, integracion asincrona mediante Azure Service Bus y scripts de base de datos Oracle.
+Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de biblioteca con arquitectura hibrida, componentes serverless y arquitectura orientada a eventos (EDA). El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, cuatro Azure Functions en Java, un servicio de libros, endpoints GraphQL, integracion asincrona mediante Azure Service Bus y scripts de base de datos Oracle.
 
 ## Alcance
 
 - API REST para usuarios, prestamos y libros.
-- Backend for Frontend desarrollado con Spring Boot.
-- Dos funciones serverless en Java para usuarios y prestamos.
-- Servicio de libros separado del BFF.
+- API GraphQL para consultas de usuarios, prestamos y libros.
+- Backend for Frontend desarrollado con Spring Boot con proxy GraphQL.
+- Cuatro funciones serverless en Java desplegadas en Azure:
+  - `function-usuarios`: CRUD de usuarios + GraphQL.
+  - `function-prestamos`: CRUD de prestamos + GraphQL.
+  - `function-libros`: CRUD de libros + GraphQL.
+  - `function-notificaciones`: consumidor de eventos de Service Bus.
+- Servicio de libros separado del BFF (Spring Boot).
 - Arquitectura orientada a eventos (EDA) con Azure Service Bus como message broker.
 - Productor de eventos en el BFF para notificaciones de prestamos.
-- Consumidor de eventos en Azure Function con trigger de Service Bus.
+- Consumidor de eventos en Azure Function dedicada con trigger de Service Bus.
 - Scripts SQL para creacion y carga inicial de datos en Oracle.
 - Sin frontend incluido en el repositorio.
 
 ## Componentes
 
-- [bff-springboot](bff-springboot): punto de entrada para el cliente. Valida payloads, expone la API principal y orquesta llamadas hacia funciones y servicio de libros.
-- [function-usuarios](function-usuarios): Azure Function en Java para CRUD de usuarios.
-- [function-prestamos](function-prestamos): Azure Function en Java para CRUD de prestamos, registro de devoluciones y consumidor de eventos de notificacion via Service Bus.
-- [servicio-libros](servicio-libros): microservicio Spring Boot para gestion de libros y disponibilidad.
+- [bff-springboot](bff-springboot): punto de entrada para el cliente. Valida payloads, expone la API REST principal, proxy GraphQL hacia funciones y servicio de libros, y orquesta llamadas downstream.
+- [function-usuarios](function-usuarios): Azure Function en Java para CRUD de usuarios y consultas GraphQL.
+- [function-prestamos](function-prestamos): Azure Function en Java para CRUD de prestamos, devoluciones y consultas GraphQL.
+- [function-libros](function-libros): Azure Function en Java para CRUD de libros, disponibilidad y consultas GraphQL.
+- [function-notificaciones](function-notificaciones): Azure Function en Java dedicada al consumo de eventos de notificacion via Service Bus.
+- [servicio-libros](servicio-libros): microservicio Spring Boot para gestion de libros y disponibilidad (GraphQL incluido).
 - [database/oracle](database/oracle): scripts `schema.sql` y `data.sql`.
 - [docs/diagrama/arquitectura-biblioteca.md](docs/diagrama/arquitectura-biblioteca.md): diagrama de arquitectura.
 
 ## Arquitectura
 
 - El cliente consume unicamente el BFF.
-- El BFF enruta llamadas a usuarios, prestamos y libros.
-- Las funciones de usuarios y prestamos se consumen por URL configurable; en el flujo validado apuntan a Azure.
+- El BFF enruta llamadas REST a usuarios, prestamos y libros.
+- El BFF expone un proxy GraphQL unificado bajo `/api/graphql/{servicio}`.
+- Las funciones de usuarios, prestamos y libros se consumen por URL configurable; en el flujo validado apuntan a Azure.
+- La funcion de notificaciones es exclusivamente consumidora de eventos de Service Bus (sin endpoints HTTP).
 - El servicio de libros corre como servicio HTTP independiente dentro de Docker.
 - Usuarios, prestamos y libros persisten en una unica Oracle Autonomous Database configurada por variables de entorno.
 - El archivo [docker-compose.yml](docker-compose.yml) levanta el BFF y el servicio de libros para validacion local.
@@ -35,8 +44,17 @@ Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de b
 Flujo EDA (Arquitectura Orientada a Eventos):
 
 - El BFF actua como productor: al invocar `POST /api/prestamos/notificar`, serializa el payload a JSON y lo publica en la cola `prestamo-notificaciones` de Azure Service Bus.
-- La Azure Function `NotificacionConsumer` en `function-prestamos` actua como consumidor: escucha la cola mediante `@ServiceBusQueueTrigger`, deserializa el mensaje y simula el envio de una notificacion.
+- La Azure Function `NotificacionConsumer` en `function-notificaciones` actua como consumidor dedicado: escucha la cola mediante `@ServiceBusQueueTrigger`, deserializa el mensaje y simula el envio de una notificacion.
 - La comunicacion entre productor y consumidor es completamente asincrona y desacoplada.
+
+Azure Functions desplegadas:
+
+| Function App | Modulo | Funciones |
+|---|---|---|
+| `biblio-usuarios-kath2026-v2` | function-usuarios | UsuariosCrear, UsuariosListar, UsuariosObtener, UsuariosActualizar, UsuariosEliminar, UsuariosGraphQL |
+| `biblio-prestamos-kath2026-v2` | function-prestamos | PrestamosCrear, PrestamosListar, PrestamosObtener, PrestamosActualizar, PrestamosDevolver, PrestamosEliminar, NotificacionConsumer, PrestamosGraphQL |
+| `biblio-libros-kath2026` | function-libros | LibrosCrear, LibrosListar, LibrosObtener, LibrosActualizarEstado, LibrosDisponibilidad, LibrosGraphQL |
+| `biblio-notificaciones-kath2026` | function-notificaciones | NotificacionConsumer |
 
 ## Modo de validacion actual
 
@@ -52,15 +70,30 @@ biblioteca-faas-semana3/
   bff-springboot/
     src/main/java/com/biblioteca/bff/
       controller/
-        PrestamosController.java        # endpoint /notificar (productor EDA)
+        GraphQLProxyController.java      # proxy GraphQL unificado
+        LibrosController.java
+        PrestamosController.java         # endpoint /notificar (productor EDA)
+        UsuariosController.java
       dto/
         NotificacionPrestamoRequest.java # DTO de notificacion
       service/
         ServiceBusProducerService.java   # productor Azure Service Bus
+  function-usuarios/
+    src/main/java/com/biblioteca/functions/usuarios/
+      UsuarioFunction.java               # CRUD REST usuarios
+      UsuarioGraphQLFunction.java        # GraphQL usuarios
   function-prestamos/
     src/main/java/com/biblioteca/functions/prestamos/
-      NotificacionConsumerFunction.java  # consumidor EDA (@ServiceBusQueueTrigger)
-  function-usuarios/
+      PrestamoFunction.java              # CRUD REST prestamos
+      PrestamoGraphQLFunction.java       # GraphQL prestamos
+      NotificacionConsumerFunction.java  # consumidor EDA (legacy, tambien en function-notificaciones)
+  function-libros/
+    src/main/java/com/biblioteca/functions/libros/
+      LibroFunction.java                 # CRUD REST libros
+      LibroGraphQLFunction.java          # GraphQL libros
+  function-notificaciones/
+    src/main/java/com/biblioteca/functions/notificaciones/
+      NotificacionConsumerFunction.java  # consumidor EDA dedicado (@ServiceBusQueueTrigger)
   servicio-libros/
   database/
     oracle/
@@ -253,6 +286,32 @@ Libros:
 - `POST /api/libros`
 - `PUT /api/libros/{id}/estado`
 
+GraphQL (via BFF proxy):
+
+- `POST /api/graphql/usuarios` — proxy a function-usuarios `/graphql`
+- `POST /api/graphql/prestamos` — proxy a function-prestamos `/graphql`
+- `POST /api/graphql/libros` — proxy a servicio-libros `/graphql`
+
+Queries GraphQL disponibles:
+
+Usuarios:
+```graphql
+{ usuarios { id nombre correo telefono } }
+{ usuario(id: 1) { id nombre correo telefono } }
+```
+
+Prestamos:
+```graphql
+{ prestamos { id usuarioNombre libroTitulo estado fechaPrestamo } }
+{ prestamo(id: 1) { id usuarioNombre libroTitulo estado } }
+```
+
+Libros:
+```graphql
+{ libros { id titulo autor isbn estado disponible } }
+{ libro(id: 1) { id titulo autor isbn estado disponible } }
+```
+
 ## Ejemplos de payload
 
 Crear usuario:
@@ -359,6 +418,13 @@ Referencias utiles:
 - Health BFF: `http://localhost:8088/actuator/health`
 - Servicio de libros: `http://localhost:8083/api/libros`
 - Health servicio de libros: `http://localhost:8083/actuator/health`
+- GraphQL usuarios (BFF): `POST http://localhost:8088/api/graphql/usuarios`
+- GraphQL prestamos (BFF): `POST http://localhost:8088/api/graphql/prestamos`
+- GraphQL libros (BFF): `POST http://localhost:8088/api/graphql/libros`
+- Function libros (Azure): `https://biblio-libros-kath2026.azurewebsites.net/api/libros`
+- Function usuarios (Azure): `https://biblio-usuarios-kath2026-v2.azurewebsites.net/api/usuarios`
+- Function prestamos (Azure): `https://biblio-prestamos-kath2026-v2.azurewebsites.net/api/prestamos`
+- Function notificaciones (Azure): `https://biblio-notificaciones-kath2026.azurewebsites.net` (solo trigger Service Bus)
 
 ## Base de datos
 
@@ -386,4 +452,4 @@ Para generar el archivo final de entrega:
 
 Proyecto individual desarrollado para la asignatura Desarrollo Cloud Native II.
 
-Sumativa 2: implementacion de Arquitectura Orientada a Eventos (EDA) con Azure Service Bus.
+Sumativa 2: implementacion de Arquitectura Orientada a Eventos (EDA) con Azure Service Bus, cuatro Azure Functions con REST y GraphQL, y BFF con proxy unificado.
