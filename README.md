@@ -437,18 +437,7 @@ Los scripts pueden ejecutarse sobre Oracle Autonomous Database o sobre una insta
 
 ## Documentacion adicional
 
-- Diagrama de arquitectura: [docs/diagrama/arquitectura-biblioteca.md](docs/diagrama/arquitectura-biblioteca.md)
+- Video
 - Imagen del diagrama: [docs/diagrama/arquitectura-biblioteca.png](docs/diagrama/arquitectura-biblioteca.png)
 
-## Entrega
-
-Para generar el archivo final de entrega:
-
-- Incluye el codigo fuente de todos los modulos.
-- Incluye los scripts SQL de [database/oracle](database/oracle).
-- Incluye la documentacion de [docs](docs).
-- No incluyas `.env`, carpetas `target/`, ni artefactos generados localmente.
-
 Proyecto individual desarrollado para la asignatura Desarrollo Cloud Native II.
-
-Sumativa 2: implementacion de Arquitectura Orientada a Eventos (EDA) con Azure Service Bus, cuatro Azure Functions con REST y GraphQL, y BFF con proxy unificado.
