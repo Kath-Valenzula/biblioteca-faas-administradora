@@ -15,6 +15,7 @@
         <module>function-usuarios</module>
         <module>function-prestamos</module>
         <module>function-libros</module>
+        <module>function-notificaciones</module>
     </modules>
 
     <properties>

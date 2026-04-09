@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "java",
+    "ServiceBusConnection": "<tu-cadena-de-conexion-de-azure-service-bus>",
+    "SERVICEBUS_QUEUE_NAME": "prestamo-notificaciones"
+  }
+}
