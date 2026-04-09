@@ -32,6 +32,7 @@ public class UsuarioFunction {
             HttpRequestMessage<Optional<String>> request,
             final ExecutionContext context
     ) {
+        context.getLogger().info("[REST] Funcion UsuariosCrear invocada - POST /api/usuarios");
         try {
             UsuarioRequest payload = JsonSupport.mapper().readValue(request.getBody().orElse("{}"), UsuarioRequest.class);
             List<String> errores = validarPayload(payload, true);
@@ -73,6 +74,7 @@ public class UsuarioFunction {
             HttpRequestMessage<Optional<String>> request,
             final ExecutionContext context
     ) {
+        context.getLogger().info("[REST] Funcion UsuariosListar invocada - GET /api/usuarios");
         try (Connection connection = DatabaseConfig.getConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "SELECT ID, NOMBRE, CORREO, TELEFONO, ESTADO, FECHA_REGISTRO FROM USUARIOS ORDER BY ID"
@@ -98,6 +100,7 @@ public class UsuarioFunction {
             final ExecutionContext context,
             @BindingName("id") final Long id
     ) {
+        context.getLogger().info("[REST] Funcion UsuariosObtener invocada - GET /api/usuarios/" + id);
         try (Connection connection = DatabaseConfig.getConnection()) {
             Map<String, Object> usuario = obtenerUsuarioPorId(connection, id);
             if (usuario == null) {
@@ -120,6 +123,7 @@ public class UsuarioFunction {
             final ExecutionContext context,
             @BindingName("id") final Long id
     ) {
+        context.getLogger().info("[REST] Funcion UsuariosActualizar invocada - PUT /api/usuarios/" + id);
         try {
             UsuarioRequest payload = JsonSupport.mapper().readValue(request.getBody().orElse("{}"), UsuarioRequest.class);
             List<String> errores = validarPayload(payload, false);
@@ -165,6 +169,7 @@ public class UsuarioFunction {
             final ExecutionContext context,
             @BindingName("id") final Long id
     ) {
+        context.getLogger().info("[REST] Funcion UsuariosEliminar invocada - DELETE /api/usuarios/" + id);
         try (Connection connection = DatabaseConfig.getConnection()) {
             if (obtenerUsuarioPorId(connection, id) == null) {
                 return JsonSupport.response(request, HttpStatus.NOT_FOUND, false,

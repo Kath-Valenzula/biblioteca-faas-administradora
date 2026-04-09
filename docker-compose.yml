@@ -12,10 +12,6 @@ services:
     ports:
       - "${LIBROS_PORT:-8083}:8083"
 
-
-
-
-
   bff-springboot:
     build:
       context: ./bff-springboot

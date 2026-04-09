@@ -33,6 +33,11 @@
             <artifactId>ojdbc11</artifactId>
             <version>23.4.0.24.05</version>
         </dependency>
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+            <version>21.5</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -49,14 +54,14 @@
                 <artifactId>azure-functions-maven-plugin</artifactId>
                 <version>${azure.functions.maven.plugin.version}</version>
                 <configuration>
-                    <appName>biblio-usuarios-kath2026</appName>
+                    <appName>biblio-usuarios-kath2026-v2</appName>
                     <resourceGroup>rg-local</resourceGroup>
-                    <region>westeurope</region>
+                    <region>eastus2</region>
                     <runtime>
                         <os>linux</os>
                         <javaVersion>17</javaVersion>
                     </runtime>
-                    <appServicePlanName>plan-local</appServicePlanName>
+                    <appServicePlanName>EastUS2LinuxDynamicPlan</appServicePlanName>
                 </configuration>
                 <executions>
                     <execution>

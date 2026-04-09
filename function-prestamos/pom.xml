@@ -54,14 +54,14 @@
                 <artifactId>azure-functions-maven-plugin</artifactId>
                 <version>${azure.functions.maven.plugin.version}</version>
                 <configuration>
-                    <appName>biblio-prestamos-kath2026</appName>
+                    <appName>biblio-prestamos-kath2026-v2</appName>
                     <resourceGroup>rg-local</resourceGroup>
-                    <region>westeurope</region>
+                    <region>eastus2</region>
                     <runtime>
                         <os>linux</os>
                         <javaVersion>17</javaVersion>
                     </runtime>
-                    <appServicePlanName>plan-local</appServicePlanName>
+                    <appServicePlanName>EastUS2LinuxDynamicPlan</appServicePlanName>
                 </configuration>
                 <executions>
                     <execution>

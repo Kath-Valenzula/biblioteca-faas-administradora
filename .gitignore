@@ -9,6 +9,7 @@ logs/
 .env.*.local
 **/.azure/
 **/local.settings.json
+**/wallet/
 *.log
 *.class
 *.jar

@@ -1,0 +1,14 @@
+type Libro {
+    id: ID!
+    titulo: String!
+    autor: String!
+    isbn: String!
+    estado: String!
+    descripcion: String
+    disponible: Boolean!
+}
+
+type Query {
+    libros: [Libro!]!
+    libro(id: ID!): Libro
+}

@@ -30,6 +30,7 @@ public class PrestamoFunction {
             HttpRequestMessage<Optional<String>> request,
             final ExecutionContext context
     ) {
+        context.getLogger().info("[REST] Funcion PrestamosCrear invocada - POST /api/prestamos");
         try {
             PrestamoCrearRequest payload = JsonSupport.mapper().readValue(request.getBody().orElse("{}"), PrestamoCrearRequest.class);
             List<String> errores = validarCreacion(payload);
@@ -107,6 +108,7 @@ public class PrestamoFunction {
             HttpRequestMessage<Optional<String>> request,
             final ExecutionContext context
     ) {
+        context.getLogger().info("[REST] Funcion PrestamosListar invocada - GET /api/prestamos");
         try (Connection connection = DatabaseConfig.getConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "SELECT P.ID, P.USUARIO_ID, U.NOMBRE AS USUARIO_NOMBRE, P.LIBRO_ID, L.TITULO AS LIBRO_TITULO, P.FECHA_PRESTAMO, P.FECHA_DEVOLUCION_ESTIMADA, P.FECHA_DEVOLUCION_REAL, P.ESTADO, P.OBSERVACION FROM PRESTAMOS P JOIN USUARIOS U ON U.ID = P.USUARIO_ID JOIN LIBROS L ON L.ID = P.LIBRO_ID ORDER BY P.ID"
@@ -132,6 +134,7 @@ public class PrestamoFunction {
             final ExecutionContext context,
             @BindingName("id") final Long id
     ) {
+        context.getLogger().info("[REST] Funcion PrestamosObtener invocada - GET /api/prestamos/" + id);
         try (Connection connection = DatabaseConfig.getConnection()) {
             Map<String, Object> prestamo = obtenerPrestamo(connection, id);
             if (prestamo == null) {
@@ -154,6 +157,7 @@ public class PrestamoFunction {
             final ExecutionContext context,
             @BindingName("id") final Long id
     ) {
+        context.getLogger().info("[REST] Funcion PrestamosActualizar invocada - PUT /api/prestamos/" + id);
         try {
             PrestamoActualizarRequest payload = JsonSupport.mapper().readValue(request.getBody().orElse("{}"), PrestamoActualizarRequest.class);
             List<String> errores = validarActualizacion(payload);
@@ -202,6 +206,7 @@ public class PrestamoFunction {
             final ExecutionContext context,
             @BindingName("id") final Long id
     ) {
+        context.getLogger().info("[REST] Funcion PrestamosDevolver invocada - POST /api/prestamos/" + id + "/devolucion");
         try {
             PrestamoDevolucionRequest payload = JsonSupport.mapper().readValue(request.getBody().orElse("{}"), PrestamoDevolucionRequest.class);
             List<String> errores = validarDevolucion(payload);
@@ -267,6 +272,7 @@ public class PrestamoFunction {
             final ExecutionContext context,
             @BindingName("id") final Long id
     ) {
+        context.getLogger().info("[REST] Funcion PrestamosEliminar invocada - DELETE /api/prestamos/" + id);
         try (Connection connection = DatabaseConfig.getConnection()) {
             Map<String, Object> prestamo = obtenerPrestamo(connection, id);
             if (prestamo == null) {

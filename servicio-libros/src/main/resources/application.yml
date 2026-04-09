@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: servicio-libros
+  graphql:
+    path: /api/graphql
+    graphiql:
+      enabled: true
+      path: /api/graphiql
   datasource:
     url: ${ORACLE_JDBC_URL}
     username: ${ORACLE_APP_USER:${ORACLE_USERNAME}}
