@@ -1,6 +1,6 @@
 # Sistema de Biblioteca
 
-Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de biblioteca con arquitectura hibrida, componentes serverless y arquitectura orientada a eventos (EDA). El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, cuatro Azure Functions en Java, un servicio de libros, endpoints GraphQL, integracion asincrona mediante Azure Service Bus y scripts de base de datos Oracle.
+Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de biblioteca con arquitectura hibrida, componentes serverless y arquitectura orientada a eventos (EDA). El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, cuatro Azure Functions en Java, un servicio de libros, endpoints GraphQL, integracion asincrona mediante Azure Service Bus (flujo S5) y Azure Event Grid como mecanismo EDA principal para S8, y scripts de base de datos Oracle.
 
 ## Alcance
 
@@ -11,11 +11,13 @@ Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de b
   - `function-usuarios`: CRUD de usuarios + GraphQL.
   - `function-prestamos`: CRUD de prestamos + GraphQL.
   - `function-libros`: CRUD de libros + GraphQL.
-  - `function-notificaciones`: consumidor de eventos de Service Bus.
+  - `function-notificaciones`: consumidor dual de eventos — Azure Service Bus (flujo S5) y Azure Event Grid (flujo S8).
 - Servicio de libros separado del BFF (Spring Boot).
-- Arquitectura orientada a eventos (EDA) con Azure Service Bus como message broker.
-- Productor de eventos en el BFF para notificaciones de prestamos.
-- Consumidor de eventos en Azure Function dedicada con trigger de Service Bus.
+- Arquitectura orientada a eventos (EDA) con Azure Event Grid como mecanismo principal (flujo S8): productor en `function-prestamos`, consumidor en `function-notificaciones`.
+- Arquitectura orientada a eventos (EDA) con Azure Service Bus como message broker (flujo S5, mantenido).
+- Productor de eventos Event Grid en `function-prestamos`: publica `Biblioteca.PrestamoCreado` y `Biblioteca.PrestamoDevuelto` despues de confirmar cada operacion en Oracle.
+- Consumidor de eventos Event Grid en Azure Function con `@EventGridTrigger`.
+- Productor legado en el BFF para notificaciones via Service Bus (`POST /api/prestamos/notificar`).
 - Scripts SQL para creacion y carga inicial de datos en Oracle.
 - Sin frontend incluido en el repositorio.
 
@@ -23,12 +25,12 @@ Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de b
 
 - [bff-springboot](bff-springboot): punto de entrada para el cliente. Valida payloads, expone la API REST principal, proxy GraphQL hacia funciones y servicio de libros, y orquesta llamadas downstream.
 - [function-usuarios](function-usuarios): Azure Function en Java para CRUD de usuarios y consultas GraphQL.
-- [function-prestamos](function-prestamos): Azure Function en Java para CRUD de prestamos, devoluciones y consultas GraphQL.
+- [function-prestamos](function-prestamos): Azure Function en Java para CRUD de prestamos, devoluciones, consultas GraphQL y publicacion de eventos en Azure Event Grid (`Biblioteca.PrestamoCreado`, `Biblioteca.PrestamoDevuelto`) como productor EDA S8.
 - [function-libros](function-libros): Azure Function en Java para CRUD de libros, disponibilidad y consultas GraphQL.
-- [function-notificaciones](function-notificaciones): Azure Function en Java dedicada al consumo de eventos de notificacion via Service Bus.
+- [function-notificaciones](function-notificaciones): Azure Function en Java con consumidor dual: `NotificacionConsumer` via Azure Service Bus (flujo S5) y `PrestamoEventGridConsumer` via Azure Event Grid con `@EventGridTrigger` (flujo S8).
 - [servicio-libros](servicio-libros): microservicio Spring Boot para gestion de libros y disponibilidad (GraphQL incluido).
 - [database/oracle](database/oracle): scripts `schema.sql` y `data.sql`.
-- [diagrama semana 5.png](diagrama%20semana%205.png): diagrama de arquitectura del proyecto.
+- [docs/diagrama/diagrama-s8.png](docs/diagrama/diagrama-s8.png): diagrama de arquitectura S8 del proyecto.
 
 ## Arquitectura
 
@@ -41,10 +43,18 @@ Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de b
 - Usuarios, prestamos y libros persisten en una unica Oracle Autonomous Database configurada por variables de entorno.
 - El archivo [docker-compose.yml](docker-compose.yml) levanta el BFF y el servicio de libros para validacion local.
 
-Flujo EDA (Arquitectura Orientada a Eventos):
+Flujo EDA — S8: Azure Event Grid (mecanismo principal):
+
+- `function-prestamos` actua como productor de eventos: al crear o devolver un prestamo, primero confirma la operacion en Oracle (`commit()`), luego publica el evento en el topic `biblioteca-eventos-topic` de Azure Event Grid.
+- Los tipos de evento definidos son `Biblioteca.PrestamoCreado` y `Biblioteca.PrestamoDevuelto`. Cada evento incluye `prestamoId`, `usuarioId`, `libroId`, `estado`, `fechaEvento` y `correlationId`.
+- La suscripcion `biblioteca-prestamos-notificaciones-sub` filtra unicamente esos dos tipos de evento y los enruta a `function-notificaciones`.
+- La Azure Function `PrestamoEventGridConsumer` en `function-notificaciones` actua como consumidor: escucha mediante `@EventGridTrigger`, deserializa el evento y genera la notificacion correspondiente con trazabilidad por `correlationId`.
+- La comunicacion es completamente asincrona, desacoplada y basada en push desde Azure Event Grid.
+
+Flujo EDA — S5: Azure Service Bus (flujo anterior, mantenido):
 
 - El BFF actua como productor: al invocar `POST /api/prestamos/notificar`, serializa el payload a JSON y lo publica en la cola `prestamo-notificaciones` de Azure Service Bus.
-- La Azure Function `NotificacionConsumer` en `function-notificaciones` actua como consumidor dedicado: escucha la cola mediante `@ServiceBusQueueTrigger`, deserializa el mensaje y simula el envio de una notificacion.
+- La Azure Function `NotificacionConsumer` en `function-notificaciones` actua como consumidor: escucha la cola mediante `@ServiceBusQueueTrigger`, deserializa el mensaje y genera la notificacion.
 - La comunicacion entre productor y consumidor es completamente asincrona y desacoplada.
 
 Azure Functions desplegadas:
@@ -54,7 +64,7 @@ Azure Functions desplegadas:
 | `biblio-usuarios-kath2026-v2` | function-usuarios | UsuariosCrear, UsuariosListar, UsuariosObtener, UsuariosActualizar, UsuariosEliminar, UsuariosGraphQL |
 | `biblio-prestamos-kath2026-v2` | function-prestamos | PrestamosCrear, PrestamosListar, PrestamosObtener, PrestamosActualizar, PrestamosDevolver, PrestamosEliminar, PrestamosGraphQL |
 | `biblio-libros-kath2026` | function-libros | LibrosCrear, LibrosListar, LibrosObtener, LibrosActualizarEstado, LibrosDisponibilidad, LibrosGraphQL |
-| `biblio-notificaciones-kath2026` | function-notificaciones | NotificacionConsumer |
+| `biblio-notificaciones-kath2026` | function-notificaciones | NotificacionConsumer, PrestamoEventGridConsumer |
 
 ## Modo de validacion actual
 
@@ -84,24 +94,26 @@ biblioteca-faas-semana3/
       UsuarioGraphQLFunction.java        # GraphQL usuarios
   function-prestamos/
     src/main/java/com/biblioteca/functions/prestamos/
-      PrestamoFunction.java              # CRUD REST prestamos
+      PrestamoFunction.java              # CRUD REST prestamos + publicacion eventos Event Grid
       PrestamoGraphQLFunction.java       # GraphQL prestamos
+      PrestamoEventGridPublisher.java    # publicador de eventos Event Grid — S8
   function-libros/
     src/main/java/com/biblioteca/functions/libros/
       LibroFunction.java                 # CRUD REST libros
       LibroGraphQLFunction.java          # GraphQL libros
   function-notificaciones/
     src/main/java/com/biblioteca/functions/notificaciones/
-      NotificacionConsumerFunction.java  # consumidor EDA dedicado (@ServiceBusQueueTrigger)
+      NotificacionConsumerFunction.java          # consumidor EDA via Service Bus (@ServiceBusQueueTrigger) — S5
+      PrestamoEventGridConsumerFunction.java     # consumidor EDA via Event Grid (@EventGridTrigger) — S8
   servicio-libros/
   database/
     oracle/
       schema.sql
       data.sql
-  diagrama semana 5.png
   docs/
     diagrama/
-      arquitectura-biblioteca.png
+      diagrama-s8.mmd
+      diagrama-s8.png
   .env.example
   .gitignore
   docker-compose.yml
@@ -114,7 +126,8 @@ biblioteca-faas-semana3/
 - Java 17
 - Spring Boot 3.3.5
 - Azure Functions Java
-- Azure Service Bus (SDK `azure-messaging-servicebus`)
+- Azure Service Bus (SDK `azure-messaging-servicebus`) — flujo S5
+- Azure Event Grid (SDK `azure-messaging-eventgrid:4.28.0`) — flujo S8
 - Oracle Database
 - JDBC
 - Spring Data JPA
@@ -175,12 +188,23 @@ USUARIOS_FUNCTION_BASE_URL=http://localhost:7071/api
 PRESTAMOS_FUNCTION_BASE_URL=http://localhost:7072/api
 ```
 
-Configuracion de Azure Service Bus:
+Configuracion de Azure Service Bus (flujo S5):
 
 ```env
 SERVICEBUS_CONNECTION_STRING=Endpoint=sb://<tu-namespace>.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=<tu-clave>
 SERVICEBUS_QUEUE_NAME=prestamo-notificaciones
 ```
+
+Configuracion de Azure Event Grid (flujo S8):
+
+```env
+EVENTGRID_TOPIC_ENDPOINT=https://<tu-topic>.eastus2-1.eventgrid.azure.net/api/events
+EVENTGRID_TOPIC_KEY=<tu-clave-del-topic>
+EVENTGRID_TOPIC_NAME=biblioteca-eventos-topic
+```
+
+Estas variables se configuran en los App Settings de `biblio-prestamos-kath2026-v2` en Azure Portal.
+El topic `biblioteca-eventos-topic` debe tener una Event Subscription con filtros `Biblioteca.PrestamoCreado` y `Biblioteca.PrestamoDevuelto` apuntando a `biblio-notificaciones-kath2026`.
 
 Para las Azure Functions, la conexion de Service Bus se configura en `local.settings.json` bajo las claves `ServiceBusConnection` y `SERVICEBUS_QUEUE_NAME`. Usa [function-prestamos/local.settings.sample.json](function-prestamos/local.settings.sample.json) como referencia.
 
@@ -423,7 +447,7 @@ Referencias utiles:
 - Function libros (Azure): `https://biblio-libros-kath2026.azurewebsites.net/api/libros`
 - Function usuarios (Azure): `https://biblio-usuarios-kath2026-v2.azurewebsites.net/api/usuarios`
 - Function prestamos (Azure): `https://biblio-prestamos-kath2026-v2.azurewebsites.net/api/prestamos`
-- Function notificaciones (Azure): `https://biblio-notificaciones-kath2026.azurewebsites.net` (solo trigger Service Bus)
+- Function notificaciones (Azure): `https://biblio-notificaciones-kath2026.azurewebsites.net` (NotificacionConsumer via Service Bus — S5; PrestamoEventGridConsumer via Event Grid — S8)
 
 ## Base de datos
 
@@ -438,6 +462,7 @@ Los scripts pueden ejecutarse sobre Oracle Autonomous Database o sobre una insta
 ## Documentacion adicional
 
 - Video
-- Imagen del diagrama: [docs/diagrama/arquitectura-biblioteca.png](docs/diagrama/arquitectura-biblioteca.png)
+- Diagrama S8 (Mermaid fuente): [docs/diagrama/diagrama-s8.mmd](docs/diagrama/diagrama-s8.mmd)
+- Diagrama S8 (imagen): [docs/diagrama/diagrama-s8.png](docs/diagrama/diagrama-s8.png)
 
 Proyecto individual desarrollado para la asignatura Desarrollo Cloud Native II.

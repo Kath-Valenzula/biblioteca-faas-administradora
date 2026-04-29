@@ -82,8 +82,10 @@ public class PrestamoFunction {
                     }
 
                     connection.commit();
+                    Map<String, Object> prestamoCreado = obtenerPrestamo(connection, prestamoId);
+                    publicarEventoPrestamo(PrestamoEventGridPublisher.EVENTO_PRESTAMO_CREADO, prestamoCreado, context);
                     return JsonSupport.response(request, HttpStatus.CREATED, true,
-                            "Prestamo registrado correctamente", obtenerPrestamo(connection, prestamoId));
+                            "Prestamo registrado correctamente", prestamoCreado);
                 } catch (Exception ex) {
                     connection.rollback();
                     throw ex;
@@ -245,8 +247,10 @@ public class PrestamoFunction {
                     }
 
                     connection.commit();
+                    Map<String, Object> prestamoDevuelto = obtenerPrestamo(connection, id);
+                    publicarEventoPrestamo(PrestamoEventGridPublisher.EVENTO_PRESTAMO_DEVUELTO, prestamoDevuelto, context);
                     return JsonSupport.response(request, HttpStatus.OK, true,
-                            "Devolucion registrada correctamente", obtenerPrestamo(connection, id));
+                            "Devolucion registrada correctamente", prestamoDevuelto);
                 } catch (Exception ex) {
                     connection.rollback();
                     throw ex;
@@ -406,5 +410,13 @@ public class PrestamoFunction {
 
     private String valorOpcional(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private void publicarEventoPrestamo(String tipoEvento, Map<String, Object> prestamo, ExecutionContext context) {
+        try {
+            PrestamoEventGridPublisher.publicar(tipoEvento, prestamo, context);
+        } catch (Exception ex) {
+            context.getLogger().severe("No fue posible publicar evento Event Grid " + tipoEvento + ": " + ex.getMessage());
+        }
     }
 }
