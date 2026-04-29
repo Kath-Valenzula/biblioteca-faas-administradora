@@ -69,9 +69,9 @@ curl https://servicio-libros-kath2026.orangemushroom-45a0eb3b.eastus2.azureconta
 - El BFF expone un proxy GraphQL unificado bajo `/api/graphql/{servicio}`.
 - Las funciones de usuarios, prestamos y libros se consumen por URL configurable; en el flujo validado apuntan a Azure.
 - La funcion de notificaciones es exclusivamente consumidora de eventos de Service Bus (sin endpoints HTTP).
-- El servicio de libros corre como servicio HTTP independiente dentro de Docker.
+- El servicio de libros esta desplegado en Azure Container Apps (`servicio-libros-kath2026`) y se consume mediante su URL publica.
 - Usuarios, prestamos y libros persisten en una unica Oracle Autonomous Database configurada por variables de entorno.
-- El archivo [docker-compose.yml](docker-compose.yml) levanta el BFF y el servicio de libros para validacion local.
+- El archivo [docker-compose.yml](docker-compose.yml) permite levantar el BFF y el servicio de libros localmente para desarrollo.
 
 Flujo EDA — S8: Azure Event Grid (mecanismo principal):
 
@@ -96,12 +96,22 @@ Azure Functions desplegadas:
 | `biblio-libros-kath2026` | function-libros | LibrosCrear, LibrosListar, LibrosObtener, LibrosActualizarEstado, LibrosDisponibilidad, LibrosGraphQL |
 | `biblio-notificaciones-kath2026` | function-notificaciones | NotificacionConsumer, PrestamoEventGridConsumer |
 
-## Modo de validacion actual
+## Validacion en cloud
 
-- `docker compose` levanta `bff-springboot` y `servicio-libros`.
-- `servicio-libros` se conecta a Oracle Cloud usando `ORACLE_JDBC_URL`, `ORACLE_APP_USER` y `ORACLE_APP_PASSWORD`.
-- `USUARIOS_FUNCTION_BASE_URL` y `PRESTAMOS_FUNCTION_BASE_URL` apuntan normalmente a Azure Functions.
-- El BFF queda disponible normalmente en `http://localhost:8088`.
+Todos los componentes Java estan desplegados en Azure. La validacion se realiza directamente contra las URLs cloud listadas en la seccion "Ambiente cloud completo".
+
+Flujo de prueba rapido:
+
+```bash
+# BFF (Azure Container Apps)
+curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/actuator/health
+curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/usuarios
+curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/prestamos
+curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/libros
+
+# Demo completo del flujo Event Grid (S8)
+./scripts/demo-eventgrid-flow.sh
+```
 
 ## Estructura del repositorio
 
@@ -245,9 +255,9 @@ Notas operativas:
 - El puerto publicado del BFF depende de `BFF_PORT`. En este repositorio se valida normalmente con `8088`.
 - Los timeouts del proxy HTTP del BFF se controlan con `BFF_DOWNSTREAM_CONNECT_TIMEOUT` y `BFF_DOWNSTREAM_READ_TIMEOUT`.
 
-## Ejecucion con Docker
+## Ejecucion con Docker (desarrollo local)
 
-Modo recomendado para validar el BFF y el servicio de libros:
+Para ejecutar el BFF y el servicio de libros localmente:
 
 1. Crea `.env` a partir de [`.env.example`](.env.example).
 2. Define `USUARIOS_FUNCTION_BASE_URL` y `PRESTAMOS_FUNCTION_BASE_URL` segun el ambiente.

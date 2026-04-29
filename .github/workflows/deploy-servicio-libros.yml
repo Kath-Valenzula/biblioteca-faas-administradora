@@ -1,4 +1,4 @@
-name: Deploy servicio-libros a Azure App Service
+name: Deploy servicio-libros a Azure Container Apps
 
 on:
   push:
@@ -9,7 +9,8 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: servicio-libros-kath2026
+  ACA_NAME: servicio-libros-kath2026
+  ACA_RG: rg-biblioteca-kath2026
   IMAGE_NAME: servicio-libros
 
 jobs:
@@ -21,8 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Restaurar Oracle Wallet desde secret
-        # El secret ORACLE_WALLET_BASE64 contiene:
-        #   tar -czf - -C servicio-libros/src/main/resources wallet | base64
+        # ORACLE_WALLET_BASE64: tar -czf - -C servicio-libros/src/main/resources wallet | base64
         run: |
           mkdir -p servicio-libros/src/main/resources/wallet
           echo "${{ secrets.ORACLE_WALLET_BASE64 }}" \
@@ -48,8 +48,10 @@ jobs:
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Deploy a Azure App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.APP_NAME }}
-          images: ${{ env.IMAGE }}
+      - name: Deploy a Azure Container Apps
+        run: |
+          az extension add --name containerapp --upgrade --yes
+          az containerapp update \
+            --name ${{ env.ACA_NAME }} \
+            --resource-group ${{ env.ACA_RG }} \
+            --image ${{ env.IMAGE }}

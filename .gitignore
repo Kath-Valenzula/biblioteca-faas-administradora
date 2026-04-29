@@ -19,3 +19,6 @@ Thumbs.db
 
 # Documento personal de recuperación Azure (no subir)
 docs/AZURE-RECOVERY-PLAN.md
+
+# Claude Code session data
+.claude/

@@ -1,4 +1,4 @@
-name: Deploy BFF a Azure App Service
+name: Deploy BFF a Azure Container Apps
 
 on:
   push:
@@ -9,7 +9,8 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: bff-biblioteca-kath2026
+  ACA_NAME: bff-biblioteca-kath2026
+  ACA_RG: rg-biblioteca-kath2026
   IMAGE_NAME: bff-springboot
 
 jobs:
@@ -39,8 +40,10 @@ jobs:
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      - name: Deploy a Azure App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.APP_NAME }}
-          images: ${{ env.IMAGE }}
+      - name: Deploy a Azure Container Apps
+        run: |
+          az extension add --name containerapp --upgrade --yes
+          az containerapp update \
+            --name ${{ env.ACA_NAME }} \
+            --resource-group ${{ env.ACA_RG }} \
+            --image ${{ env.IMAGE }}

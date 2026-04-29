@@ -12,7 +12,7 @@
 
 set -uo pipefail   # sin -e para no abortar si un endpoint retorna error HTTP
 
-BASE_URL="${BASE_URL:-https://bff-biblioteca-kath2026.azurewebsites.net/api}"
+BASE_URL="${BASE_URL:-https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api}"
 SEP="========================================"
 
 # Formateador JSON portable: usa jq si está, si no python3, si no cat
