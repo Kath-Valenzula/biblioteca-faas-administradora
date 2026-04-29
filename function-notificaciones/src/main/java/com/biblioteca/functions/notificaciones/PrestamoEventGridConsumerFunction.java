@@ -31,6 +31,12 @@ public class PrestamoEventGridConsumerFunction {
                     "Procesando evento de prestamo: tipoEvento=%s, prestamoId=%s, usuarioId=%s, libroId=%s, estado=%s, correlationId=%s",
                     eventType, prestamoId, usuarioId, libroId, estado, correlationId));
 
+            // Simulacion de notificacion: en produccion aqui iria SendGrid / Logic Apps / etc.
+            String accion = eventType.contains("Creado") ? "PRESTAMO REGISTRADO" : "DEVOLUCION REGISTRADA";
+            context.getLogger().info(String.format(
+                    "[NOTIFICACION SIMULADA] Para: usuario-%s | Asunto: %s | " +
+                    "Detalle: prestamoId=%s, libroId=%s, estado=%s | correlationId=%s",
+                    usuarioId, accion, prestamoId, libroId, estado, correlationId));
             context.getLogger().info(String.format(
                     "Notificacion generada via Event Grid: canal de alertas activado para usuarioId=%s, prestamoId=%s [tipo=%s]",
                     usuarioId, prestamoId, eventType));

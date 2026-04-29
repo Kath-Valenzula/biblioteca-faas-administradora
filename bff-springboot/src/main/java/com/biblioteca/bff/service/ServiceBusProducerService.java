@@ -27,15 +27,29 @@ public class ServiceBusProducerService {
     ) {
         this.queueName = queueName;
         this.objectMapper = objectMapper;
-        this.senderClient = new ServiceBusClientBuilder()
-                .connectionString(connectionString)
-                .sender()
-                .queueName(queueName)
-                .buildClient();
-        LOGGER.info("ServiceBusSenderClient inicializado para la cola '{}'", queueName);
+        ServiceBusSenderClient client = null;
+        if (connectionString != null && !connectionString.isBlank()) {
+            try {
+                client = new ServiceBusClientBuilder()
+                        .connectionString(connectionString)
+                        .sender()
+                        .queueName(queueName)
+                        .buildClient();
+                LOGGER.info("ServiceBusSenderClient inicializado para la cola '{}'", queueName);
+            } catch (Exception ex) {
+                LOGGER.warn("No fue posible inicializar ServiceBusSenderClient (EDA S5 desactivado): {}", ex.getMessage());
+            }
+        } else {
+            LOGGER.warn("SERVICEBUS_CONNECTION_STRING no configurado — EDA S5 (Service Bus) desactivado.");
+        }
+        this.senderClient = client;
     }
 
     public void enviarNotificacion(Object payload) {
+        if (senderClient == null) {
+            LOGGER.warn("ServiceBusSenderClient no disponible — mensaje de notificacion omitido (EDA S5 inactivo).");
+            return;
+        }
         String jsonPayload;
         try {
             jsonPayload = objectMapper.writeValueAsString(payload);

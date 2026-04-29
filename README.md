@@ -1,6 +1,36 @@
 # Sistema de Biblioteca
 
-Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de biblioteca con arquitectura hibrida, componentes serverless y arquitectura orientada a eventos (EDA). El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, cuatro Azure Functions en Java, un servicio de libros, endpoints GraphQL, integracion asincrona mediante Azure Service Bus (flujo S5) y Azure Event Grid como mecanismo EDA principal para S8, y scripts de base de datos Oracle.
+Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de biblioteca con componentes serverless y arquitectura orientada a eventos (EDA). El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, cuatro Azure Functions en Java, un servicio de libros, endpoints GraphQL, integracion asincrona mediante Azure Service Bus (flujo S5) y Azure Event Grid como mecanismo EDA principal para S8, y scripts de base de datos Oracle.
+
+## Ambiente cloud completo
+
+Todos los componentes Java estan desplegados en Azure:
+
+| Componente | Tipo | URL |
+| --- | --- | --- |
+| `bff-springboot` | Azure Container Apps | `https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io` |
+| `servicio-libros` | Azure Container Apps | `https://servicio-libros-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io` |
+| `function-usuarios` | Azure Function App | `https://biblio-usuarios-kath2026-v2.azurewebsites.net/api` |
+| `function-prestamos` | Azure Function App | `https://biblio-prestamos-kath2026-v2.azurewebsites.net/api` |
+| `function-libros` | Azure Function App | `https://biblio-libros-kath2026.azurewebsites.net/api` |
+| `function-notificaciones` | Azure Function App | trigger-only (Service Bus + Event Grid) |
+
+Servicios de infraestructura en Azure:
+
+- **Event Grid Topic**: `biblioteca-eventos-topic` (mecanismo EDA S8)
+- **Event Grid Subscription**: `biblioteca-prestamos-notificaciones-sub`
+- **Service Bus**: `servicebus-katherine2026` / cola `prestamo-notificaciones` (flujo S5 legacy)
+- **Oracle Autonomous Database**: OCI — persistencia unica para USUARIOS, LIBROS, PRESTAMOS
+
+Verificacion rapida del ambiente cloud:
+
+```powershell
+curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/actuator/health
+curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/usuarios
+curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/prestamos
+curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/libros
+curl https://servicio-libros-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/actuator/health
+```
 
 ## Alcance
 
@@ -60,7 +90,7 @@ Flujo EDA — S5: Azure Service Bus (flujo anterior, mantenido):
 Azure Functions desplegadas:
 
 | Function App | Modulo | Funciones |
-|---|---|---|
+| --- | --- | --- |
 | `biblio-usuarios-kath2026-v2` | function-usuarios | UsuariosCrear, UsuariosListar, UsuariosObtener, UsuariosActualizar, UsuariosEliminar, UsuariosGraphQL |
 | `biblio-prestamos-kath2026-v2` | function-prestamos | PrestamosCrear, PrestamosListar, PrestamosObtener, PrestamosActualizar, PrestamosDevolver, PrestamosEliminar, PrestamosGraphQL |
 | `biblio-libros-kath2026` | function-libros | LibrosCrear, LibrosListar, LibrosObtener, LibrosActualizarEstado, LibrosDisponibilidad, LibrosGraphQL |
@@ -318,18 +348,21 @@ GraphQL (via BFF proxy):
 Queries GraphQL disponibles:
 
 Usuarios:
+
 ```graphql
 { usuarios { id nombre correo telefono } }
 { usuario(id: 1) { id nombre correo telefono } }
 ```
 
 Prestamos:
+
 ```graphql
 { prestamos { id usuarioNombre libroTitulo estado fechaPrestamo } }
 { prestamo(id: 1) { id usuarioNombre libroTitulo estado } }
 ```
 
 Libros:
+
 ```graphql
 { libros { id titulo autor isbn estado disponible } }
 { libro(id: 1) { id titulo autor isbn estado disponible } }

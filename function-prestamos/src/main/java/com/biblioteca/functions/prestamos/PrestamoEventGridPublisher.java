@@ -30,7 +30,10 @@ final class PrestamoEventGridPublisher {
         String topicName = System.getenv(TOPIC_NAME_SETTING);
 
         if (isBlank(endpoint) || isBlank(key)) {
-            context.getLogger().warning("Event Grid no configurado; se omite publicacion del evento " + tipoEvento);
+            // Best-effort: la BD ya confirmó, el evento es no-crítico (sin outbox pattern).
+            context.getLogger().warning(
+                    "Event Grid no configurado (faltan EVENTGRID_TOPIC_ENDPOINT / EVENTGRID_TOPIC_KEY); " +
+                    "la operacion de BD ya fue confirmada — evento " + tipoEvento + " omitido (best-effort).");
             return;
         }
 
