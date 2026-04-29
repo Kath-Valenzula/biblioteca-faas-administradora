@@ -96,21 +96,44 @@ Azure Functions desplegadas:
 | `biblio-libros-kath2026` | function-libros | LibrosCrear, LibrosListar, LibrosObtener, LibrosActualizarEstado, LibrosDisponibilidad, LibrosGraphQL |
 | `biblio-notificaciones-kath2026` | function-notificaciones | NotificacionConsumer, PrestamoEventGridConsumer |
 
-## Validacion en cloud
+## Nota de diseño EDA
 
-Todos los componentes Java estan desplegados en Azure. La validacion se realiza directamente contra las URLs cloud listadas en la seccion "Ambiente cloud completo".
+El flujo S8 usa Azure Event Grid como mecanismo EDA principal: `function-prestamos` publica los eventos `Biblioteca.PrestamoCreado` y `Biblioteca.PrestamoDevuelto` directamente al topic, y `function-notificaciones` los consume via `@EventGridTrigger`. Azure Service Bus se mantiene como flujo legacy S5 (endpoint `POST /api/prestamos/notificar` en el BFF), conservado por compatibilidad con el entregable anterior. Ambos flujos coexisten sin interferencia.
 
-Flujo de prueba rapido:
+## Evidencia de despliegue cloud completo
+
+| Componente | Servicio Azure | URL | Estado esperado |
+| --- | --- | --- | --- |
+| BFF Spring Boot | Azure Container Apps | `https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io` | `Running` |
+| servicio-libros | Azure Container Apps | `https://servicio-libros-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io` | `Running` |
+| function-usuarios | Azure Function App | `https://biblio-usuarios-kath2026-v2.azurewebsites.net` | `Running` |
+| function-prestamos | Azure Function App | `https://biblio-prestamos-kath2026-v2.azurewebsites.net` | `Running` |
+| function-libros | Azure Function App | `https://biblio-libros-kath2026.azurewebsites.net` | `Running` |
+| function-notificaciones | Azure Function App | `biblio-notificaciones-kath2026` | trigger-only |
+| Event Grid Topic | Azure Event Grid | `biblioteca-eventos-topic` | activo |
+| Event Grid Subscription | Azure Event Grid | `biblioteca-prestamos-notificaciones-sub` | activo |
+| Service Bus | Azure Service Bus | `servicebus-katherine2026 / prestamo-notificaciones` | activo (S5 legacy) |
+| Base de datos | Oracle Autonomous DB (OCI) | configurado via `ORACLE_JDBC_URL` | activo |
+
+## Como validar en 3 minutos
 
 ```bash
-# BFF (Azure Container Apps)
-curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/actuator/health
-curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/usuarios
-curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/prestamos
-curl https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/api/libros
+BFF=https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io
 
-# Demo completo del flujo Event Grid (S8)
+# 1. Health checks
+curl $BFF/actuator/health
+curl https://servicio-libros-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io/actuator/health
+
+# 2. Datos en cloud
+curl $BFF/api/usuarios
+curl $BFF/api/prestamos
+curl $BFF/api/libros
+
+# 3. Flujo completo Event Grid S8 (crea prestamo → publica evento → function-notificaciones lo consume)
 ./scripts/demo-eventgrid-flow.sh
+# Verificar en Azure Portal → biblio-notificaciones-kath2026 → Log stream:
+#   [NOTIFICACION SIMULADA] ... PRESTAMO REGISTRADO ...
+#   [NOTIFICACION SIMULADA] ... DEVOLUCION REGISTRADA ...
 ```
 
 ## Estructura del repositorio

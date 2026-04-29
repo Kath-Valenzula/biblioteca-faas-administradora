@@ -9,8 +9,8 @@
 #   - Extension containerapp: az extension add --name containerapp
 #
 # Uso:
-#   chmod +x scripts/setup-azure-appservice.sh
-#   ./scripts/setup-azure-appservice.sh
+#   chmod +x scripts/setup-azure-containerapps.sh
+#   ./scripts/setup-azure-containerapps.sh
 
 set -euo pipefail
 
