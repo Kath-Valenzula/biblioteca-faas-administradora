@@ -125,7 +125,7 @@ if ($usuarioId) {
     Write-Host ""
     Write-Host ">>> Verificar Log stream de biblio-notificaciones-kath2026:"
     Write-Host "    [NOTIFICACION SIMULADA] Asunto: USUARIO ELIMINADO | prestamosEliminados=1"
-    Write-Host ">>> El libro $p2Id debe haber vuelto a DISPONIBLE automaticamente."
+    Write-Host ">>> El libro libroId=2 debe haber vuelto a DISPONIBLE automaticamente."
 }
 
 Write-Host ""

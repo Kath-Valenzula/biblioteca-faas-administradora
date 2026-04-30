@@ -24,7 +24,9 @@ flowchart TB
         Oracle["Oracle Autonomous Database<br>Persistencia única<br>Tablas: USUARIOS, LIBROS, PRESTAMOS"]
   end
     Cliente["Cliente REST / Swagger / Postman / curl"] -- HTTP REST / GraphQL proxy --> BFF
-    BFF -- REST / GraphQL --> Usuarios & Prestamos & ServicioLibros
+    BFF -- REST / GraphQL --> Usuarios
+    BFF -- REST / GraphQL --> Prestamos
+    BFF -- REST / GraphQL --> ServicioLibros
     BFF -- "POST /api/prestamos/notificar - S5 legacy" --> ServiceBus
     ServiceBus -- "@ServiceBusQueueTrigger - S5" --> Notificaciones
     Prestamos -- "publica PrestamoCreado / PrestamoDevuelto - S8" --> EventGridTopic

@@ -328,7 +328,39 @@ Limpiar contenedores huerfanos antiguos:
 docker compose down --remove-orphans
 ```
 
-## Ejecucion manual
+## Despliegue de Azure Functions
+
+Las Azure Functions se despliegan con zip-deploy via Azure CLI. Pasos para cualquiera de las cuatro funciones:
+
+```bash
+# 1. Compilar
+cd function-<nombre>
+mvn package -DskipTests -q
+
+# 2. Crear ZIP del artefacto
+cd target/azure-functions/<app-name>
+# Linux/Mac:
+zip -r ../deploy.zip .
+# Windows:
+powershell -Command "Compress-Archive -Path * -DestinationPath ../deploy.zip -Force"
+
+# 3. Desplegar
+az functionapp deployment source config-zip \
+  --resource-group rg-local \
+  --name <app-name> \
+  --src target/azure-functions/deploy.zip
+```
+
+Nombres de Function App por modulo:
+
+| Modulo | Function App |
+| --- | --- |
+| function-usuarios | `biblio-usuarios-kath2026-v2` |
+| function-prestamos | `biblio-prestamos-kath2026-v2` |
+| function-libros | `biblio-libros-kath2026` |
+| function-notificaciones | `biblio-notificaciones-kath2026` |
+
+## Ejecucion manual (local)
 
 Si necesitas correr todos los componentes fuera de Docker o validar funciones localmente:
 
