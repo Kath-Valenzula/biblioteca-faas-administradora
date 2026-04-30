@@ -3,28 +3,32 @@ config:
   layout: fixed
 ---
 flowchart TB
- subgraph AzureContainerApps["Azure Container Apps"]
-        BFF["BFF Spring Boot<br>bff-biblioteca-kath2026<br>orquestador REST<br>proxy GraphQL<br>productor Service Bus S5 legacy"]
-        ServicioLibros["servicio-libros Spring Boot<br>servicio-libros-kath2026<br>REST + GraphQL<br>JPA / JDBC / ojdbc11"]
+ subgraph AzureApps["Azure Container Apps"]
+        BFF["BFF Spring Boot<br>bff-biblioteca-kath2026<br>Azure Container Apps<br>URL pública: Azure Container Apps<br>orquestador REST<br>proxy GraphQL<br>productor Service Bus S5 legacy"]
+        ServicioLibros["servicio-libros Spring Boot<br>servicio-libros-kath2026<br>Azure Container Apps<br>REST + GraphQL<br>JPA / JDBC / ojdbc11"]
   end
  subgraph AzureFunctions["Azure Functions"]
         Usuarios["function-usuarios<br>biblio-usuarios-kath2026-v2<br>CRUD usuarios + GraphQL"]
         Prestamos["function-prestamos<br>biblio-prestamos-kath2026-v2<br>CRUD préstamos + devoluciones + GraphQL"]
-        FunctionLibros["function-libros<br>biblio-libros-kath2026<br>CRUD libros + GraphQL"]
         Notificaciones["function-notificaciones<br>biblio-notificaciones-kath2026<br>@ServiceBusQueueTrigger - S5<br>@EventGridTrigger - S8<br>solo consume eventos/mensajes"]
   end
  subgraph EventGrid["Azure Event Grid - S8 principal"]
-        EventGridTopic["Topic: biblioteca-eventos-topic<br>EVENTGRID_TOPIC_ENDPOINT<br>EVENTGRID_TOPIC_KEY<br>EVENTGRID_TOPIC_NAME"]
+        EventGridTopic["Topic: biblioteca-eventos-topic<br>Estado: Succeeded<br>Publica: Biblioteca.PrestamoCreado / Biblioteca.PrestamoDevuelto"]
         EventGridSub["Subscription: biblioteca-prestamos-notificaciones-sub<br>Filtros:<br>Biblioteca.PrestamoCreado<br>Biblioteca.PrestamoDevuelto<br>Destino: function-notificaciones"]
   end
  subgraph ServiceBusBox["Azure Service Bus - S5 legacy"]
         ServiceBus["Namespace: servicebus-katherine2026<br>Cola: prestamo-notificaciones"]
   end
- subgraph OCI["OCI"]
-        Oracle["Oracle Autonomous Database<br>Tablas: USUARIOS, LIBROS, PRESTAMOS<br>Persistencia única"]
+ subgraph OCI["Oracle - OCI"]
+        Oracle["Oracle Autonomous Database<br>OCI<br>NO está en Azure<br>Persistencia única<br>Tablas: USUARIOS, LIBROS, PRESTAMOS"]
+  end
+ subgraph LibrosAlt["Function libros alternativa"]
+        FunctionLibros["function-libros<br>biblio-libros-kath2026<br>Azure Function disponible<br>CRUD libros + GraphQL<br>no usada por BFF principal"]
   end
     Cliente["Cliente REST / Swagger / Postman / curl"] -- HTTP REST / GraphQL proxy --> BFF
-    BFF -- REST / GraphQL --> Usuarios & Prestamos & ServicioLibros
+    BFF -- REST / GraphQL --> Usuarios
+    BFF -- REST / GraphQL --> Prestamos
+    BFF -- REST / GraphQL --> ServicioLibros
     BFF -- "POST /api/prestamos/notificar - S5 legacy" --> ServiceBus
     ServiceBus -- "@ServiceBusQueueTrigger - S5" --> Notificaciones
     Prestamos -- "publica evento después de commit() - sin outbox" --> EventGridTopic
@@ -33,17 +37,17 @@ flowchart TB
     Usuarios -- JDBC / TLS --> Oracle
     Prestamos -- JDBC / TLS --> Oracle
     ServicioLibros -- JPA / JDBC / ojdbc11 --> Oracle
-    FunctionLibros -- JDBC / TLS --> Oracle
-    Observabilidad["Application Insights / Logs<br>logs, correlationId, métricas"]
+    FunctionLibros -. JDBC / TLS opcional .-> Oracle
+    Observabilidad["Application Insights / Log Stream<br>correlationId<br>métricas<br>[NOTIFICACION SIMULADA]"]
 
-    style BFF fill:#c6efce,stroke:#107c10,stroke-width:2px
-    style ServicioLibros fill:#c6efce,stroke:#107c10,stroke-width:2px
+    style BFF fill:#fff2cc,stroke:#d6a000,stroke-width:2px
+    style ServicioLibros fill:#fffbe6,stroke:#d6a000,stroke-width:2px
     style Usuarios fill:#c6efce,stroke:#107c10,stroke-width:2px
     style Prestamos fill:#c6efce,stroke:#107c10,stroke-width:2px
-    style FunctionLibros fill:#c6efce,stroke:#107c10,stroke-width:2px
     style Notificaciones fill:#c6efce,stroke:#107c10,stroke-width:2px
     style EventGridTopic fill:#0078d4,color:#fff,stroke:#005a9e,stroke-width:2px
     style EventGridSub fill:#0078d4,color:#fff,stroke:#005a9e,stroke-width:2px
     style ServiceBus fill:#fff2cc,stroke:#d6a000,stroke-width:2px,stroke-dasharray:5 5
     style Oracle fill:#c74634,color:#fff,stroke:#a03020,stroke-width:2px
+    style FunctionLibros fill:#c6efce,stroke:#107c10,stroke-width:2px,stroke-dasharray:5 5
     style Observabilidad fill:#d9ead3,stroke:#38761d
