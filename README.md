@@ -1,6 +1,24 @@
 # Sistema de Biblioteca
 
-Repositorio de la Actividad Sumativa 2 para la implementacion de un sistema de biblioteca con componentes serverless y arquitectura orientada a eventos (EDA). El proyecto expone una API backend-only compuesta por un BFF en Spring Boot, cuatro Azure Functions en Java, un servicio de libros, endpoints GraphQL, integracion asincrona mediante Azure Service Bus (flujo S5) y Azure Event Grid como mecanismo EDA principal para S8, y scripts de base de datos Oracle.
+Evaluacion Final Transversal — Desarrollo Cloud Native II (DSY2207).
+
+Sistema de biblioteca backend-only con BFF Spring Boot, cuatro Azure Functions en Java, servicio de libros Spring Boot, API REST, API GraphQL, integracion asincrona con Azure Event Grid (EDA principal, S8/S9) y Azure Service Bus (legacy S5), desplegado completamente en Azure y OCI.
+
+## Cumplimiento de requisitos S9
+
+| Requisito | Implementacion |
+| --- | --- |
+| Microservicios Spring Boot en nube | BFF (`bff-biblioteca-kath2026`) y servicio-libros (`servicio-libros-kath2026`) en Azure Container Apps |
+| Funciones serverless Java | 4 Azure Function Apps desplegadas en Azure |
+| API REST | BFF expone REST para usuarios, prestamos y libros |
+| API GraphQL | `function-usuarios`, `function-prestamos`, `function-libros` y `servicio-libros` exponen GraphQL; BFF lo proxea |
+| BFF | `bff-springboot` orquesta y proxea REST + GraphQL |
+| Tecnologia de eventos | Azure Event Grid: `Biblioteca.PrestamoCreado`, `Biblioteca.PrestamoDevuelto`, `Biblioteca.UsuarioEliminado` |
+| Prestamo resta disponibilidad del libro | Al crear prestamo, libro pasa a `ESTADO=PRESTADO` (1 fila = 1 copia fisica; disponibilidad 1→0) |
+| Eliminar usuario elimina prestamos asociados | `DELETE /api/usuarios/{id}` hace cascade delete en una transaccion y publica `Biblioteca.UsuarioEliminado` en Event Grid |
+| Despliegue cloud | 100%: BFF, servicio-libros, 4 Azure Functions, Event Grid, Service Bus en Azure; Oracle en OCI |
+| Scripts de BD Oracle | `database/oracle/schema.sql` y `database/oracle/data.sql` |
+| Docker | `docker-compose.yml` disponible para desarrollo local |
 
 ## Ambiente cloud completo
 
@@ -469,11 +487,11 @@ Enviar notificacion de prestamo (EDA):
 - No se registra un prestamo para un usuario inexistente.
 - No se registra un prestamo para un libro inexistente.
 - No se presta un libro que no este disponible.
-- Al registrar un prestamo, el libro pasa a estado `PRESTADO`.
-- Al registrar una devolucion, el libro vuelve a estado `DISPONIBLE`.
+- Al registrar un prestamo, el libro pasa a estado `PRESTADO` (disponibilidad 1 → 0 por copia fisica).
+- Al registrar una devolucion, el libro vuelve a estado `DISPONIBLE` (disponibilidad 0 → 1).
 - Solo se actualizan prestamos en estado `ACTIVO`.
 - Solo se eliminan prestamos en estado `DEVUELTO`.
-- No se elimina un usuario si tiene prestamos asociados.
+- Al eliminar un usuario, se eliminan automaticamente todos sus prestamos asociados y se restaura la disponibilidad de los libros con prestamos activos. Se publica el evento `Biblioteca.UsuarioEliminado` en Event Grid como notificacion de auditoria.
 
 ## Verificacion
 

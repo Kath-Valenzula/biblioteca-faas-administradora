@@ -28,18 +28,27 @@ public class PrestamoEventGridConsumerFunction {
             String correlationId = textOrDefault(data, "correlationId", "N/A");
 
             context.getLogger().info(String.format(
-                    "Procesando evento de prestamo: tipoEvento=%s, prestamoId=%s, usuarioId=%s, libroId=%s, estado=%s, correlationId=%s",
+                    "Procesando evento: tipoEvento=%s, prestamoId=%s, usuarioId=%s, libroId=%s, estado=%s, correlationId=%s",
                     eventType, prestamoId, usuarioId, libroId, estado, correlationId));
 
             // Simulacion de notificacion: en produccion aqui iria SendGrid / Logic Apps / etc.
-            String accion = eventType.contains("Creado") ? "PRESTAMO REGISTRADO" : "DEVOLUCION REGISTRADA";
+            if (eventType.contains("UsuarioEliminado")) {
+                String prestamosEliminados = textOrDefault(data, "prestamosEliminados", "0");
+                String nombre = textOrDefault(data, "nombre", "N/A");
+                context.getLogger().info(String.format(
+                        "[NOTIFICACION SIMULADA] Asunto: USUARIO ELIMINADO | " +
+                        "Detalle: usuarioId=%s, nombre=%s, prestamosEliminados=%s | correlationId=%s",
+                        usuarioId, nombre, prestamosEliminados, correlationId));
+            } else {
+                String accion = eventType.contains("Creado") ? "PRESTAMO REGISTRADO" : "DEVOLUCION REGISTRADA";
+                context.getLogger().info(String.format(
+                        "[NOTIFICACION SIMULADA] Para: usuario-%s | Asunto: %s | " +
+                        "Detalle: prestamoId=%s, libroId=%s, estado=%s | correlationId=%s",
+                        usuarioId, accion, prestamoId, libroId, estado, correlationId));
+            }
             context.getLogger().info(String.format(
-                    "[NOTIFICACION SIMULADA] Para: usuario-%s | Asunto: %s | " +
-                    "Detalle: prestamoId=%s, libroId=%s, estado=%s | correlationId=%s",
-                    usuarioId, accion, prestamoId, libroId, estado, correlationId));
-            context.getLogger().info(String.format(
-                    "Notificacion generada via Event Grid: canal de alertas activado para usuarioId=%s, prestamoId=%s [tipo=%s]",
-                    usuarioId, prestamoId, eventType));
+                    "Notificacion generada via Event Grid: canal de alertas activado para usuarioId=%s [tipo=%s]",
+                    usuarioId, eventType));
 
             context.getLogger().info("=== EVENTO EVENT GRID PROCESADO EXITOSAMENTE ===");
         } catch (Exception ex) {

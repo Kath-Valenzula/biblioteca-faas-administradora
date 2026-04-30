@@ -171,22 +171,57 @@ public class UsuarioFunction {
     ) {
         context.getLogger().info("[REST] Funcion UsuariosEliminar invocada - DELETE /api/usuarios/" + id);
         try (Connection connection = DatabaseConfig.getConnection()) {
-            if (obtenerUsuarioPorId(connection, id) == null) {
+            Map<String, Object> usuario = obtenerUsuarioPorId(connection, id);
+            if (usuario == null) {
                 return JsonSupport.response(request, HttpStatus.NOT_FOUND, false,
                         "No existe un usuario con el id indicado", null);
             }
-            if (tienePrestamos(connection, id)) {
-                return JsonSupport.response(request, HttpStatus.BAD_REQUEST, false,
-                        "No se puede eliminar el usuario porque tiene prestamos registrados", null);
-            }
 
-            try (PreparedStatement statement = connection.prepareStatement("DELETE FROM USUARIOS WHERE ID = ?")) {
-                statement.setLong(1, id);
-                statement.executeUpdate();
-            }
+            connection.setAutoCommit(false);
+            try {
+                // Restaurar libros a DISPONIBLE para prestamos activos del usuario
+                try (PreparedStatement stmt = connection.prepareStatement(
+                        "UPDATE LIBROS SET ESTADO = 'DISPONIBLE' " +
+                        "WHERE ID IN (SELECT LIBRO_ID FROM PRESTAMOS WHERE USUARIO_ID = ? AND ESTADO = 'ACTIVO')")) {
+                    stmt.setLong(1, id);
+                    stmt.executeUpdate();
+                }
 
-            return JsonSupport.response(request, HttpStatus.OK, true,
-                    "Usuario eliminado correctamente", Map.of("id", id));
+                // Eliminar todos los prestamos asociados al usuario
+                int prestamosEliminados;
+                try (PreparedStatement stmt = connection.prepareStatement(
+                        "DELETE FROM PRESTAMOS WHERE USUARIO_ID = ?")) {
+                    stmt.setLong(1, id);
+                    prestamosEliminados = stmt.executeUpdate();
+                }
+
+                // Eliminar el usuario
+                try (PreparedStatement stmt = connection.prepareStatement(
+                        "DELETE FROM USUARIOS WHERE ID = ?")) {
+                    stmt.setLong(1, id);
+                    stmt.executeUpdate();
+                }
+
+                connection.commit();
+                context.getLogger().info(String.format(
+                        "Usuario %d eliminado con %d prestamo(s) asociado(s) eliminado(s) automaticamente.", id, prestamosEliminados));
+
+                // Publicar evento de auditoria (best-effort, fuera de la transaccion)
+                UsuarioEventGridPublisher.publicar(
+                        UsuarioEventGridPublisher.EVENTO_USUARIO_ELIMINADO, usuario, prestamosEliminados, context);
+
+                Map<String, Object> resultado = new LinkedHashMap<>();
+                resultado.put("id", id);
+                resultado.put("prestamosEliminados", prestamosEliminados);
+                return JsonSupport.response(request, HttpStatus.OK, true,
+                        "Usuario eliminado correctamente junto con sus prestamos asociados", resultado);
+
+            } catch (SQLException ex) {
+                connection.rollback();
+                throw ex;
+            } finally {
+                connection.setAutoCommit(true);
+            }
         } catch (SQLException ex) {
             context.getLogger().severe("Error eliminando usuario: " + ex.getMessage());
             return JsonSupport.response(request, HttpStatus.INTERNAL_SERVER_ERROR, false,
@@ -234,15 +269,6 @@ public class UsuarioFunction {
         throw new SQLException("No fue posible recuperar el id generado para " + entityName);
     }
 
-    private boolean tienePrestamos(Connection connection, Long usuarioId) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT COUNT(1) AS TOTAL FROM PRESTAMOS WHERE USUARIO_ID = ?")) {
-            statement.setLong(1, usuarioId);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next() && resultSet.getLong("TOTAL") > 0;
-            }
-        }
-    }
 
     private Map<String, Object> obtenerUsuarioPorId(Connection connection, Long id) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(

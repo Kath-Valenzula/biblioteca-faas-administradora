@@ -38,6 +38,11 @@
             <artifactId>graphql-java</artifactId>
             <version>21.5</version>
         </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-messaging-eventgrid</artifactId>
+            <version>4.28.0</version>
+        </dependency>
     </dependencies>
 
     <build>
