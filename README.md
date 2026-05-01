@@ -1,6 +1,6 @@
 # Sistema de Biblioteca
 
-Evaluacion Final Transversal — Desarrollo Cloud Native II (DSY2207).
+Evaluacion Final Transversal - Desarrollo Cloud Native II (DSY2207).
 
 Sistema de biblioteca backend-only con BFF Spring Boot, cuatro Azure Functions en Java, servicio de libros Spring Boot, API REST, API GraphQL, integracion asincrona con Azure Event Grid (EDA principal, S8/S9) y Azure Service Bus (legacy S5), desplegado completamente en Azure y OCI.
 
@@ -14,7 +14,7 @@ Sistema de biblioteca backend-only con BFF Spring Boot, cuatro Azure Functions e
 | API GraphQL | `function-usuarios`, `function-prestamos`, `function-libros` y `servicio-libros` exponen GraphQL; BFF lo proxea |
 | BFF | `bff-springboot` orquesta y proxea REST + GraphQL |
 | Tecnologia de eventos | Azure Event Grid: `Biblioteca.PrestamoCreado`, `Biblioteca.PrestamoDevuelto`, `Biblioteca.UsuarioEliminado` |
-| Prestamo resta disponibilidad del libro | Al crear prestamo, libro pasa a `ESTADO=PRESTADO` (1 fila = 1 copia fisica; disponibilidad 1→0) |
+| Prestamo resta disponibilidad del libro | Al crear prestamo, libro pasa a `ESTADO=PRESTADO` (1 fila = 1 copia fisica; disponibilidad 1 -> 0) |
 | Eliminar usuario elimina prestamos asociados | `DELETE /api/usuarios/{id}` hace cascade delete en una transaccion y publica `Biblioteca.UsuarioEliminado` en Event Grid |
 | Despliegue cloud | 100%: BFF, servicio-libros, 4 Azure Functions, Event Grid, Service Bus en Azure; Oracle en OCI |
 | Scripts de BD Oracle | `database/oracle/schema.sql` y `database/oracle/data.sql` |
@@ -38,7 +38,7 @@ Servicios de infraestructura en Azure:
 - **Event Grid Topic**: `biblioteca-eventos-topic` (mecanismo EDA S8)
 - **Event Grid Subscription**: `biblioteca-prestamos-notificaciones-sub`
 - **Service Bus**: `servicebus-katherine2026` / cola `prestamo-notificaciones` (flujo S5 legacy)
-- **Oracle Autonomous Database**: OCI — persistencia unica para USUARIOS, LIBROS, PRESTAMOS
+- **Oracle Autonomous Database**: OCI - persistencia unica para USUARIOS, LIBROS, PRESTAMOS
 
 Verificacion rapida del ambiente cloud:
 
@@ -59,7 +59,7 @@ curl https://servicio-libros-kath2026.orangemushroom-45a0eb3b.eastus2.azureconta
   - `function-usuarios`: CRUD de usuarios + GraphQL.
   - `function-prestamos`: CRUD de prestamos + GraphQL.
   - `function-libros`: CRUD de libros + GraphQL.
-  - `function-notificaciones`: consumidor dual de eventos — Azure Service Bus (flujo S5) y Azure Event Grid (flujo S8).
+  - `function-notificaciones`: consumidor dual de eventos - Azure Service Bus (flujo S5) y Azure Event Grid (flujo S8).
 - Servicio de libros separado del BFF (Spring Boot).
 - Arquitectura orientada a eventos (EDA) con Azure Event Grid como mecanismo principal (flujo S8): productor en `function-prestamos`, consumidor en `function-notificaciones`.
 - Arquitectura orientada a eventos (EDA) con Azure Service Bus como message broker (flujo S5, mantenido).
@@ -91,7 +91,7 @@ curl https://servicio-libros-kath2026.orangemushroom-45a0eb3b.eastus2.azureconta
 - Usuarios, prestamos y libros persisten en una unica Oracle Autonomous Database configurada por variables de entorno.
 - El archivo [docker-compose.yml](docker-compose.yml) permite levantar el BFF y el servicio de libros localmente para desarrollo.
 
-Flujo EDA — S8: Azure Event Grid (mecanismo principal):
+Flujo EDA - S8: Azure Event Grid (mecanismo principal):
 
 - `function-prestamos` actua como productor de eventos: al crear o devolver un prestamo, primero confirma la operacion en Oracle (`commit()`), luego publica el evento en el topic `biblioteca-eventos-topic` de Azure Event Grid.
 - Los tipos de evento definidos son `Biblioteca.PrestamoCreado` y `Biblioteca.PrestamoDevuelto`. Cada evento incluye `prestamoId`, `usuarioId`, `libroId`, `estado`, `fechaEvento` y `correlationId`.
@@ -99,7 +99,7 @@ Flujo EDA — S8: Azure Event Grid (mecanismo principal):
 - La Azure Function `PrestamoEventGridConsumer` en `function-notificaciones` actua como consumidor: escucha mediante `@EventGridTrigger`, deserializa el evento y genera la notificacion correspondiente con trazabilidad por `correlationId`.
 - La comunicacion es completamente asincrona, desacoplada y basada en push desde Azure Event Grid.
 
-Flujo EDA — S5: Azure Service Bus (flujo anterior, mantenido):
+Flujo EDA - S5: Azure Service Bus (flujo anterior, mantenido):
 
 - El BFF actua como productor: al invocar `POST /api/prestamos/notificar`, serializa el payload a JSON y lo publica en la cola `prestamo-notificaciones` de Azure Service Bus.
 - La Azure Function `NotificacionConsumer` en `function-notificaciones` actua como consumidor: escucha la cola mediante `@ServiceBusQueueTrigger`, deserializa el mensaje y genera la notificacion.
@@ -147,9 +147,9 @@ curl $BFF/api/usuarios
 curl $BFF/api/prestamos
 curl $BFF/api/libros
 
-# 3. Flujo completo Event Grid S8 (crea prestamo → publica evento → function-notificaciones lo consume)
+# 3. Flujo completo Event Grid S8 (crea prestamo -> publica evento -> function-notificaciones lo consume)
 ./scripts/demo-eventgrid-flow.sh
-# Verificar en Azure Portal → biblio-notificaciones-kath2026 → Log stream:
+# Verificar en Azure Portal -> biblio-notificaciones-kath2026 -> Log stream:
 #   [NOTIFICACION SIMULADA] ... PRESTAMO REGISTRADO ...
 #   [NOTIFICACION SIMULADA] ... DEVOLUCION REGISTRADA ...
 ```
@@ -177,15 +177,15 @@ biblioteca-faas-semana3/
     src/main/java/com/biblioteca/functions/prestamos/
       PrestamoFunction.java              # CRUD REST prestamos + publicacion eventos Event Grid
       PrestamoGraphQLFunction.java       # GraphQL prestamos
-      PrestamoEventGridPublisher.java    # publicador de eventos Event Grid — S8
+      PrestamoEventGridPublisher.java    # publicador de eventos Event Grid - S8
   function-libros/
     src/main/java/com/biblioteca/functions/libros/
       LibroFunction.java                 # CRUD REST libros
       LibroGraphQLFunction.java          # GraphQL libros
   function-notificaciones/
     src/main/java/com/biblioteca/functions/notificaciones/
-      NotificacionConsumerFunction.java          # consumidor EDA via Service Bus (@ServiceBusQueueTrigger) — S5
-      PrestamoEventGridConsumerFunction.java     # consumidor EDA via Event Grid (@EventGridTrigger) — S8
+      NotificacionConsumerFunction.java          # consumidor EDA via Service Bus (@ServiceBusQueueTrigger) - S5
+      PrestamoEventGridConsumerFunction.java     # consumidor EDA via Event Grid (@EventGridTrigger) - S8
   servicio-libros/
   database/
     oracle/
@@ -207,8 +207,8 @@ biblioteca-faas-semana3/
 - Java 17
 - Spring Boot 3.3.5
 - Azure Functions Java
-- Azure Service Bus (SDK `azure-messaging-servicebus`) — flujo S5
-- Azure Event Grid (SDK `azure-messaging-eventgrid:4.28.0`) — flujo S8
+- Azure Service Bus (SDK `azure-messaging-servicebus`) - flujo S5
+- Azure Event Grid (SDK `azure-messaging-eventgrid:4.28.0`) - flujo S8
 - Oracle Database
 - JDBC
 - Spring Data JPA
@@ -339,16 +339,15 @@ mvn package -DskipTests -q
 
 # 2. Crear ZIP del artefacto
 cd target/azure-functions/<app-name>
-# Linux/Mac:
-zip -r ../deploy.zip .
-# Windows:
-powershell -Command "Compress-Archive -Path * -DestinationPath ../deploy.zip -Force"
+# Usar jar para que el ZIP mantenga rutas con "/" compatibles con Linux/Flex.
+# No usar Compress-Archive en Windows para este despliegue.
+jar --create --file ../deploy-fwd.zip .
 
 # 3. Desplegar
 az functionapp deployment source config-zip \
   --resource-group rg-local \
   --name <app-name> \
-  --src target/azure-functions/deploy.zip
+  --src target/azure-functions/deploy-fwd.zip
 ```
 
 Nombres de Function App por modulo:
@@ -412,7 +411,7 @@ Prestamos:
 - `PUT /api/prestamos/{id}`
 - `POST /api/prestamos/{id}/devolucion`
 - `DELETE /api/prestamos/{id}`
-- `POST /api/prestamos/notificar` — publica un evento de notificacion en Azure Service Bus (EDA)
+- `POST /api/prestamos/notificar` - publica un evento de notificacion en Azure Service Bus (EDA)
 
 Libros:
 
@@ -424,9 +423,9 @@ Libros:
 
 GraphQL (via BFF proxy):
 
-- `POST /api/graphql/usuarios` — proxy a function-usuarios `/graphql`
-- `POST /api/graphql/prestamos` — proxy a function-prestamos `/graphql`
-- `POST /api/graphql/libros` — proxy a servicio-libros `/graphql`
+- `POST /api/graphql/usuarios` - proxy a function-usuarios `/graphql`
+- `POST /api/graphql/prestamos` - proxy a function-prestamos `/graphql`
+- `POST /api/graphql/libros` - proxy a servicio-libros `/graphql`
 
 Queries GraphQL disponibles:
 
@@ -519,8 +518,8 @@ Enviar notificacion de prestamo (EDA):
 - No se registra un prestamo para un usuario inexistente.
 - No se registra un prestamo para un libro inexistente.
 - No se presta un libro que no este disponible.
-- Al registrar un prestamo, el libro pasa a estado `PRESTADO` (disponibilidad 1 → 0 por copia fisica).
-- Al registrar una devolucion, el libro vuelve a estado `DISPONIBLE` (disponibilidad 0 → 1).
+- Al registrar un prestamo, el libro pasa a estado `PRESTADO` (disponibilidad 1 -> 0 por copia fisica).
+- Al registrar una devolucion, el libro vuelve a estado `DISPONIBLE` (disponibilidad 0 -> 1).
 - Solo se actualizan prestamos en estado `ACTIVO`.
 - Solo se eliminan prestamos en estado `DEVUELTO`.
 - Al eliminar un usuario, se eliminan automaticamente todos sus prestamos asociados y se restaura la disponibilidad de los libros con prestamos activos. Se publica el evento `Biblioteca.UsuarioEliminado` en Event Grid como notificacion de auditoria.
@@ -563,7 +562,7 @@ Referencias utiles:
 - Function libros (Azure): `https://biblio-libros-kath2026.azurewebsites.net/api/libros`
 - Function usuarios (Azure): `https://biblio-usuarios-kath2026-v2.azurewebsites.net/api/usuarios`
 - Function prestamos (Azure): `https://biblio-prestamos-kath2026-v2.azurewebsites.net/api/prestamos`
-- Function notificaciones (Azure): `https://biblio-notificaciones-kath2026.azurewebsites.net` (NotificacionConsumer via Service Bus — S5; PrestamoEventGridConsumer via Event Grid — S8)
+- Function notificaciones (Azure): `https://biblio-notificaciones-kath2026.azurewebsites.net` (NotificacionConsumer via Service Bus - S5; PrestamoEventGridConsumer via Event Grid - S8)
 
 ## Base de datos
 
