@@ -135,8 +135,8 @@ El flujo S8 usa Azure Event Grid como mecanismo EDA principal: `function-prestam
 
 ## Como validar en 3 minutos
 
-```bash
-BFF=https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io
+```powershell
+$BFF = "https://bff-biblioteca-kath2026.orangemushroom-45a0eb3b.eastus2.azurecontainerapps.io"
 
 # 1. Health checks
 curl $BFF/actuator/health
@@ -147,12 +147,16 @@ curl $BFF/api/usuarios
 curl $BFF/api/prestamos
 curl $BFF/api/libros
 
-# 3. Flujo completo Event Grid S8 (crea prestamo -> publica evento -> function-notificaciones lo consume)
-./scripts/demo-eventgrid-flow.sh
+# 3. Demo completa S8/S9: prestamos, devolucion y eliminacion de usuario con cascade
+.\scripts\demo-eventgrid-flow.ps1
 # Verificar en Azure Portal -> biblio-notificaciones-kath2026 -> Log stream:
 #   [NOTIFICACION SIMULADA] ... PRESTAMO REGISTRADO ...
 #   [NOTIFICACION SIMULADA] ... DEVOLUCION REGISTRADA ...
+#   [NOTIFICACION SIMULADA] Asunto: USUARIO ELIMINADO | prestamosEliminados=1
 ```
+
+El script `scripts/demo-eventgrid-flow.sh` cubre solo el flujo S8 (Bash, para entornos Linux/Mac).
+Para el flujo S9 completo en Windows usar `scripts/demo-eventgrid-flow.ps1`.
 
 ## Estructura del repositorio
 
@@ -333,21 +337,20 @@ docker compose down --remove-orphans
 Las Azure Functions se despliegan con zip-deploy via Azure CLI. Pasos para cualquiera de las cuatro funciones:
 
 ```bash
-# 1. Compilar
+# 1. Compilar (desde la raiz del modulo)
 cd function-<nombre>
 mvn package -DskipTests -q
 
-# 2. Crear ZIP del artefacto
+# 2. Crear ZIP con rutas "/" compatibles con Linux/Flex Consumption
+#    Usar jar (no Compress-Archive de Windows, que genera rutas con "\")
 cd target/azure-functions/<app-name>
-# Usar jar para que el ZIP mantenga rutas con "/" compatibles con Linux/Flex.
-# No usar Compress-Archive en Windows para este despliegue.
 jar --create --file ../deploy-fwd.zip .
 
-# 3. Desplegar
+# 3. Desplegar (la ruta es relativa al directorio <app-name>)
 az functionapp deployment source config-zip \
   --resource-group rg-local \
   --name <app-name> \
-  --src target/azure-functions/deploy-fwd.zip
+  --src ../deploy-fwd.zip
 ```
 
 Nombres de Function App por modulo:
